@@ -1,0 +1,205 @@
+@import 'tailwindcss';
+
+/*
+  Guftagu Console — an audio control desk, not a dashboard.
+
+  Guftagu is live voice rooms, so the panel borrows the language of a broadcast gallery:
+  slate panelwork, signal lamps, channel strips. That is not decoration — it maps onto
+  what this console actually does. A role baseline is the default mix, a direct grant is
+  a channel pushed up, an explicit deny is a hard mute that overrides the mix, and a
+  scoped grant is literally a broadcast shift (the spec's own example runs 18:00–02:00).
+
+  Dark is a working decision, not a fashion one: moderators watch live rooms through the
+  night shift the scope example describes.
+*/
+@theme {
+  /* Panelwork — desaturated blue-slate, never pure black. */
+  --color-recess: #10151c;
+  --color-panel: #1a2230;
+  --color-raised: #222c3d;
+  --color-edge: #2f3c52;
+  --color-edge-bright: #3f5170;
+
+  /* Type */
+  --color-paper: #eef2f7;
+  --color-legend: #8494ab;
+  --color-legend-dim: #5d6b81;
+
+  /* Signal lamps. Amber is "live / granted" — the tally lamp on a desk.
+     Red is reserved strictly for deny and destructive, the way a cut button is. */
+  --color-signal: #f0a93b;
+  --color-signal-dim: #7a5720;
+  --color-cut: #e0574f;
+  --color-cut-dim: #6d2b2a;
+  --color-ok: #3fbfa0;
+  --color-ok-dim: #1e5a4c;
+  --color-route: #6f8fd6;
+
+  --font-ui: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --radius-panel: 3px;
+}
+
+/* ---------------------------------------------------------------- base */
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-recess);
+  color: var(--color-paper);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Permission keys are dotted identifiers. Monospace is functionally right here —
+   alignment is what lets you scan 79 of them — not a stylistic flourish. */
+.key {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: -0.01em;
+}
+
+/* Panel eyebrow: the little engraved label above a rack of controls. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-legend-dim);
+}
+
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-edge);
+  border-radius: var(--radius-panel);
+}
+
+/* A hatched safety cover, like the guard over a high-consequence switch.
+   Used only on `high` risk_level permissions. */
+.safety-hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    color-mix(in srgb, var(--color-cut) 22%, transparent) 3px,
+    color-mix(in srgb, var(--color-cut) 22%, transparent) 5px
+  );
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-recess);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-edge);
+  border: 2px solid var(--color-recess);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-edge-bright);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------- Element Plus, retuned
+   Element Plus ships its own dark palette. Left alone it reads as a generic
+   admin template, so its variables are rebound to the desk palette above. */
+
+html.dark {
+  color-scheme: dark;
+
+  --el-color-primary: var(--color-signal);
+  --el-color-primary-light-3: color-mix(in srgb, var(--color-signal) 70%, black);
+  --el-color-primary-light-5: color-mix(in srgb, var(--color-signal) 50%, black);
+  --el-color-primary-light-7: color-mix(in srgb, var(--color-signal) 30%, black);
+  --el-color-primary-light-8: color-mix(in srgb, var(--color-signal) 20%, black);
+  --el-color-primary-light-9: color-mix(in srgb, var(--color-signal) 12%, black);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--color-signal) 85%, white);
+
+  --el-color-danger: var(--color-cut);
+  --el-color-error: var(--color-cut);
+  --el-color-success: var(--color-ok);
+  --el-color-warning: var(--color-signal);
+
+  --el-bg-color: var(--color-panel);
+  --el-bg-color-overlay: var(--color-raised);
+  --el-bg-color-page: var(--color-recess);
+
+  --el-text-color-primary: var(--color-paper);
+  --el-text-color-regular: #c3cddb;
+  --el-text-color-secondary: var(--color-legend);
+  --el-text-color-placeholder: var(--color-legend-dim);
+
+  --el-border-color: var(--color-edge);
+  --el-border-color-light: var(--color-edge);
+  --el-border-color-lighter: var(--color-edge);
+  --el-border-color-extra-light: var(--color-raised);
+  --el-border-radius-base: 3px;
+  --el-border-radius-small: 2px;
+
+  --el-fill-color-blank: var(--color-panel);
+  --el-fill-color-light: var(--color-raised);
+  --el-fill-color-lighter: var(--color-raised);
+  --el-fill-color-darker: var(--color-recess);
+
+  --el-font-family: var(--font-ui);
+  --el-font-size-base: 14px;
+}
+
+/* Amber on slate needs dark text to stay legible — Element Plus assumes white. */
+html.dark .el-button--primary {
+  --el-button-text-color: var(--color-recess);
+  --el-button-hover-text-color: var(--color-recess);
+  font-weight: 600;
+}
+
+html.dark .el-table th.el-table__cell {
+  background: var(--color-raised);
+  font-weight: 600;
+}
+
+html.dark .el-table tr {
+  background: var(--color-panel);
+}
+
+html.dark .el-dialog {
+  border: 1px solid var(--color-edge);
+}
+
+html.dark .el-dialog__title {
+  font-weight: 600;
+}
+
+/* Element Plus tags default to a washed pastel; make them read as machine labels. */
+html.dark .el-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 2px;
+}
