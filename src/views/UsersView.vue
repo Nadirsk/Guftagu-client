@@ -9,6 +9,8 @@ import { ApiError, api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 import type { KycStatus, UserRow, UserStatus } from '@/types/api'
 
+type CreatableKycStatus = '' | Exclude<KycStatus, 'none'>
+
 /** GFT-031 — the user list. */
 const router = useRouter()
 const auth = useAuthStore()
@@ -54,6 +56,107 @@ watch(
 watch([() => query.status, () => query.kyc, () => query.page], () => void load())
 
 onMounted(load)
+
+// ----------------------------------------------------------------- create user
+
+const creating = ref(false)
+const saving = ref(false)
+const formErrors = ref<Record<string, string>>({})
+
+type DocSide = 'doc_front' | 'doc_back' | 'selfie'
+
+const emptyForm = () => ({
+  display_name: '',
+  phone: '',
+  country_code: '+91',
+  email: '',
+  status: 'active' as UserStatus,
+  initial_coins: 0,
+  initial_diamonds: 0,
+  kyc_status: '' as CreatableKycStatus,
+  doc_type: 'aadhaar',
+  doc_number: '',
+  doc_front_url: null as string | null,
+  doc_back_url: null as string | null,
+  selfie_url: null as string | null,
+})
+
+const form = reactive(emptyForm())
+
+// No user id exists yet at this point in the flow, unlike every other admin upload —
+// this endpoint just stores the file and hands back a URL, which rides along in the
+// `kyc` object when the user is actually created.
+const uploadingDoc = reactive<Record<DocSide, boolean>>({
+  doc_front: false,
+  doc_back: false,
+  selfie: false,
+})
+
+const docUrlField: Record<DocSide, 'doc_front_url' | 'doc_back_url' | 'selfie_url'> = {
+  doc_front: 'doc_front_url',
+  doc_back: 'doc_back_url',
+  selfie: 'selfie_url',
+}
+
+const docInputs: Partial<Record<DocSide, HTMLInputElement>> = {}
+
+async function uploadDoc(side: DocSide, event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+
+  uploadingDoc[side] = true
+  const body = new FormData()
+  body.append('file', file)
+  body.append('side', side)
+
+  try {
+    const { data } = await api.post<{ url: string }>('/admin/users/kyc-documents', body)
+    form[docUrlField[side]] = data.url
+    ElMessage.success('Document uploaded')
+  } catch (e) {
+    if (e instanceof ApiError) ElMessage.error(e.message)
+  } finally {
+    uploadingDoc[side] = false
+    ;(event.target as HTMLInputElement).value = ''
+  }
+}
+
+async function create() {
+  saving.value = true
+  formErrors.value = {}
+  try {
+    const { data } = await api.post<UserRow>('/admin/users', {
+      display_name: form.display_name,
+      phone: form.phone,
+      country_code: form.country_code || undefined,
+      email: form.email || undefined,
+      status: form.status,
+      initial_coins: form.initial_coins || undefined,
+      initial_diamonds: form.initial_diamonds || undefined,
+      kyc: form.kyc_status
+        ? {
+            status: form.kyc_status,
+            doc_type: form.doc_type || undefined,
+            doc_number: form.doc_number || undefined,
+            doc_front_url: form.doc_front_url ?? undefined,
+            doc_back_url: form.doc_back_url ?? undefined,
+            selfie_url: form.selfie_url ?? undefined,
+          }
+        : undefined,
+    })
+    ElMessage.success(`${data.guftagu_id} created`)
+    creating.value = false
+    Object.assign(form, emptyForm())
+    await load()
+  } catch (e) {
+    if (e instanceof ApiError) {
+      formErrors.value = e.fieldErrors
+      if (!Object.keys(formErrors.value).length) ElMessage.error(e.message)
+    }
+  } finally {
+    saving.value = false
+  }
+}
 
 async function load() {
   loading.value = true
@@ -132,7 +235,13 @@ function relative(iso: string | null): string {
     eyebrow="Platform"
     title="Users"
     lede="Everyone with a Guftagu account."
-  />
+  >
+    <template #actions>
+      <el-button v-permission.disable="'users.create'" type="primary" @click="creating = true">
+        Add user
+      </el-button>
+    </template>
+  </PageHead>
 
   <div class="px-5 py-5 md:px-7">
     <div class="mb-4 flex flex-wrap items-center gap-2">
@@ -229,4 +338,137 @@ function relative(iso: string | null): string {
       </div>
     </div>
   </div>
+
+  <el-dialog v-model="creating" title="Add user" width="460">
+    <form class="space-y-3" @submit.prevent="create">
+      <div>
+        <label class="eyebrow mb-1 block" for="new-user-name">Display name</label>
+        <el-input id="new-user-name" v-model="form.display_name" />
+        <p v-if="formErrors.display_name" class="mt-1 text-[12px] text-[var(--color-cut)]">
+          {{ formErrors.display_name }}
+        </p>
+      </div>
+
+      <div class="flex gap-2">
+        <div class="w-24">
+          <label class="eyebrow mb-1 block" for="new-user-cc">Country code</label>
+          <el-input id="new-user-cc" v-model="form.country_code" />
+        </div>
+        <div class="flex-1">
+          <label class="eyebrow mb-1 block" for="new-user-phone">Phone</label>
+          <el-input id="new-user-phone" v-model="form.phone" placeholder="+919876543210" />
+          <p v-if="formErrors.phone" class="mt-1 text-[12px] text-[var(--color-cut)]">
+            {{ formErrors.phone }}
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <label class="eyebrow mb-1 block" for="new-user-email">Email (optional)</label>
+        <el-input id="new-user-email" v-model="form.email" type="email" />
+        <p v-if="formErrors.email" class="mt-1 text-[12px] text-[var(--color-cut)]">
+          {{ formErrors.email }}
+        </p>
+      </div>
+
+      <div>
+        <label class="eyebrow mb-1 block">Status</label>
+        <el-select v-model="form.status" class="w-full">
+          <el-option label="Active" value="active" />
+          <el-option label="Suspended" value="suspended" />
+          <el-option label="Banned" value="banned" />
+        </el-select>
+      </div>
+
+      <div class="flex gap-2">
+        <div class="flex-1">
+          <label class="eyebrow mb-1 block" for="new-user-coins">Starting coins</label>
+          <el-input-number id="new-user-coins" v-model="form.initial_coins" :min="0" class="w-full" />
+        </div>
+        <div class="flex-1">
+          <label class="eyebrow mb-1 block" for="new-user-diamonds">Starting diamonds</label>
+          <el-input-number id="new-user-diamonds" v-model="form.initial_diamonds" :min="0" class="w-full" />
+        </div>
+      </div>
+
+      <div>
+        <label class="eyebrow mb-1 block">KYC</label>
+        <el-select v-model="form.kyc_status" placeholder="Not submitted" clearable class="w-full">
+          <el-option label="Pending" value="pending" />
+          <el-option label="Verified" value="verified" />
+          <el-option label="Rejected" value="rejected" />
+        </el-select>
+      </div>
+
+      <template v-if="form.kyc_status">
+        <div class="flex gap-2">
+          <div class="w-32">
+            <label class="eyebrow mb-1 block">Document type</label>
+            <el-select v-model="form.doc_type" class="w-full">
+              <el-option label="Aadhaar" value="aadhaar" />
+              <el-option label="PAN" value="pan" />
+              <el-option label="Passport" value="passport" />
+              <el-option label="Driving licence" value="dl" />
+            </el-select>
+          </div>
+          <div class="flex-1">
+            <label class="eyebrow mb-1 block" for="new-user-doc-number">Document number</label>
+            <el-input id="new-user-doc-number" v-model="form.doc_number" placeholder="auto-generated if left blank" />
+          </div>
+        </div>
+
+        <div>
+          <label class="eyebrow mb-1 block">Documents (optional)</label>
+          <div class="grid grid-cols-3 gap-2">
+            <div v-for="side in (['doc_front', 'doc_back', 'selfie'] as const)" :key="side">
+              <div
+                class="flex aspect-square items-center justify-center overflow-hidden border border-[var(--color-edge)] bg-[var(--color-recess)]"
+                style="border-radius: 4px"
+              >
+                <img
+                  v-if="form[docUrlField[side]]"
+                  :src="form[docUrlField[side]]!"
+                  alt=""
+                  class="h-full w-full object-cover"
+                />
+                <span v-else class="eyebrow">empty</span>
+              </div>
+              <el-button
+                size="small"
+                class="mt-1 w-full"
+                :loading="uploadingDoc[side]"
+                @click="(docInputs[side] as HTMLInputElement | undefined)?.click()"
+              >
+                {{ form[docUrlField[side]] ? 'Replace' : 'Upload' }}
+              </el-button>
+              <p class="eyebrow mt-0.5 text-center">{{ side === 'doc_front' ? 'front' : side === 'doc_back' ? 'back' : 'selfie' }}</p>
+              <input
+                :ref="(el) => (docInputs[side] = el as HTMLInputElement)"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                class="hidden"
+                @change="uploadDoc(side, $event)"
+              />
+            </div>
+          </div>
+          <p class="eyebrow mt-1">
+            no real documents exist for an admin-created account, so a slot left empty gets a
+            labelled placeholder instead of "not supplied"
+          </p>
+        </div>
+      </template>
+    </form>
+
+    <template #footer>
+      <el-button @click="creating = false">Cancel</el-button>
+      <el-button
+        type="primary"
+        :loading="saving"
+        :disabled="!form.display_name || !form.phone"
+        @click="create"
+      >
+        Create user
+      </el-button>
+    </template>
+  </el-dialog>
 </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import EmptyState from '@/components/EmptyState.vue'
@@ -86,6 +86,54 @@ async function submitOverride() {
 
 const user = computed(() => detail.value?.user ?? null)
 const wallet = computed(() => detail.value?.wallet ?? null)
+
+// -------------------------------------------------------------- edit profile
+
+const editOpen = ref(false)
+const editSaving = ref(false)
+const editForm = reactive({
+  display_name: '',
+  bio: '' as string | null,
+  country: '' as string | null,
+  city: '' as string | null,
+  gender: '' as string | null,
+  date_of_birth: '' as string | null,
+  language: '' as string | null,
+})
+
+function openEdit() {
+  const profile = detail.value?.profile
+  editForm.display_name = user.value?.display_name ?? ''
+  editForm.bio = profile?.bio ?? ''
+  editForm.country = profile?.country ?? ''
+  editForm.city = profile?.city ?? ''
+  editForm.gender = profile?.gender ?? ''
+  editForm.date_of_birth = profile?.date_of_birth ?? ''
+  editForm.language = profile?.language ?? ''
+  editOpen.value = true
+}
+
+async function saveEdit() {
+  editSaving.value = true
+  try {
+    await api.patch(`/admin/users/${userId}`, {
+      display_name: editForm.display_name,
+      bio: editForm.bio || null,
+      country: editForm.country || null,
+      city: editForm.city || null,
+      gender: editForm.gender || null,
+      date_of_birth: editForm.date_of_birth || null,
+      language: editForm.language || null,
+    })
+    ElMessage.success('Profile updated')
+    editOpen.value = false
+    await load()
+  } catch (e) {
+    if (e instanceof ApiError) ElMessage.error(e.message)
+  } finally {
+    editSaving.value = false
+  }
+}
 
 onMounted(() => {
   void load()
@@ -266,6 +314,9 @@ function when(iso: string | null): string {
     :lede="user ? `${user.guftagu_id} · ${user.country ?? 'unknown location'}` : ''"
   >
     <template #actions>
+      <el-button v-if="user" v-permission.disable="'users.edit'" size="small" @click="openEdit">
+        Edit
+      </el-button>
       <el-button
         v-if="user && user.status === 'active'"
         v-permission.disable="'users.suspend'"
@@ -648,7 +699,7 @@ function when(iso: string | null): string {
                   v-permission.disable="'users.kyc_verify'"
                   type="danger"
                   plain
-                  class="w-full"
+                  class="w-full ml-0!"
                   @click="reviewKyc('rejected')"
                 >
                   Reject
@@ -740,6 +791,68 @@ function when(iso: string | null): string {
     <template #footer>
       <el-button @click="overrideOpen = false">Cancel</el-button>
       <el-button type="primary" :loading="overrideSaving" @click="submitOverride">Save</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="editOpen" title="Edit user details" width="460">
+    <form class="space-y-3" @submit.prevent="saveEdit">
+      <div>
+        <label class="eyebrow mb-1 block" for="edit-name">Display name</label>
+        <el-input id="edit-name" v-model="editForm.display_name" />
+      </div>
+
+      <div>
+        <label class="eyebrow mb-1 block" for="edit-bio">Bio</label>
+        <el-input id="edit-bio" v-model="editForm.bio" type="textarea" :rows="2" maxlength="300" show-word-limit />
+      </div>
+
+      <div class="flex gap-2">
+        <div class="flex-1">
+          <label class="eyebrow mb-1 block" for="edit-country">Country</label>
+          <el-input id="edit-country" v-model="editForm.country" />
+        </div>
+        <div class="flex-1">
+          <label class="eyebrow mb-1 block" for="edit-city">City</label>
+          <el-input id="edit-city" v-model="editForm.city" />
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <div class="flex-1">
+          <label class="eyebrow mb-1 block">Gender</label>
+          <el-select v-model="editForm.gender" clearable class="w-full">
+            <el-option label="Male" value="male" />
+            <el-option label="Female" value="female" />
+            <el-option label="Undisclosed" value="undisclosed" />
+          </el-select>
+        </div>
+        <div class="flex-1">
+          <label class="eyebrow mb-1 block" for="edit-dob">Date of birth</label>
+          <el-date-picker
+            id="edit-dob"
+            v-model="editForm.date_of_birth"
+            type="date"
+            value-format="YYYY-MM-DD"
+            class="w-full"
+          />
+        </div>
+        <div class="w-24">
+          <label class="eyebrow mb-1 block" for="edit-lang">Language</label>
+          <el-input id="edit-lang" v-model="editForm.language" />
+        </div>
+      </div>
+    </form>
+
+    <template #footer>
+      <el-button @click="editOpen = false">Cancel</el-button>
+      <el-button
+        type="primary"
+        :loading="editSaving"
+        :disabled="!editForm.display_name"
+        @click="saveEdit"
+      >
+        Save
+      </el-button>
     </template>
   </el-dialog>
 </template>

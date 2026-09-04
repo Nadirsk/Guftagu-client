@@ -54,7 +54,7 @@ const router = createRouter({
           path: 'access/roles',
           name: 'roles',
           component: () => import('@/views/RolesView.vue'),
-          meta: { permission: 'access.role_manage', title: 'Roles' },
+          meta: { permission: 'access.role_manage', requireRole: 'it_admin', title: 'Roles' },
         },
         {
           path: 'access/permissions',

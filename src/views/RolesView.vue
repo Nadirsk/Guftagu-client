@@ -81,8 +81,8 @@ async function open(role: RoleSummary) {
     </div>
 
     <p class="eyebrow mt-4 leading-relaxed">
-      Super Admin holds no baseline rows — it resolves to everything by short-circuit, so its count
-      reports the full catalogue. Moderator is deliberately thin: its real powers are granted per
+      Super Admin's own definition is not listed here — it "cannot be scoped or limited," so there
+      is nothing to manage. Moderator is deliberately thin: its real powers are granted per
       account, which is the whole point of the delegation model.
     </p>
   </div>

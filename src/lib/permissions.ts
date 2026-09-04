@@ -90,7 +90,7 @@ export const NAV: NavSection[] = [
     title: 'Access',
     items: [
       { label: 'Panel users', to: '/access/admins', anyOf: ['access.admin_manage'] },
-      { label: 'Roles', to: '/access/roles', anyOf: ['access.role_manage'] },
+      { label: 'Roles', to: '/access/roles', anyOf: ['access.role_manage'], requireRole: 'it_admin' },
       { label: 'Permissions', to: '/access/permissions', anyOf: ['access.permission_grant'] },
       { label: 'Audit trail', to: '/audit', anyOf: ['access.audit_view'] },
     ],
