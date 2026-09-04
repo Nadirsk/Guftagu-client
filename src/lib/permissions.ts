@@ -59,6 +59,13 @@ export interface NavItem {
   anyOf: string[]
   /** Marks a section that exists in the spec but has no backend yet. */
   pending?: boolean
+  /**
+   * Restricts the item to one specific role, on top of `anyOf`. Unlike a permission key,
+   * Super Admin's blanket bypass does NOT satisfy this — use it for the rare screen that
+   * must stay off-limits even to Super Admin (see System logs below and role:it_admin
+   * in routes/api.php).
+   */
+  requireRole?: string
 }
 
 export interface NavSection {
@@ -95,7 +102,9 @@ export const NAV: NavSection[] = [
       { label: 'Room catalogue', to: '/room-catalogue', anyOf: ['rooms.view'] },
       { label: 'Users', to: '/users', anyOf: ['users.view'] },
       { label: 'Gifts', to: '/gifts', anyOf: ['gifts.view'] },
+      { label: 'Store', to: '/store', anyOf: ['vip.view'] },
       { label: 'VIP & cosmetics', to: '/vip', anyOf: ['vip.view'] },
+      { label: 'Levels', to: '/levels', anyOf: ['levels.view'] },
       { label: 'Security', to: '/settings/security', anyOf: ['settings.manage'] },
     ],
   },
@@ -111,6 +120,7 @@ export const NAV: NavSection[] = [
     items: [
       { label: 'Agencies', to: '/agencies', anyOf: ['agency.view'] },
       { label: 'Hosts', to: '/hosts', anyOf: ['hosts.view'] },
+      { label: 'Gift Targets', to: '/gift-targets', anyOf: ['hosts.gift_target_manage'] },
     ],
   },
   {
@@ -136,6 +146,15 @@ export const NAV: NavSection[] = [
       { label: 'Reports queue', to: '/reports', anyOf: ['reports.view'] },
       { label: 'Content filter', to: '/moderation/words', anyOf: ['moderation.bannedwords_manage'] },
       { label: 'Moderator activity', to: '/moderation/activity', anyOf: ['moderation.logs_view'] },
+    ],
+  },
+  {
+    // `system.logs_view` is deliberately excluded from the `admin` baseline (RoleSeeder).
+    // `requireRole` keeps this off Super Admin too — the backend route enforces the same
+    // restriction (role:it_admin), so this only hides a link that would otherwise 403.
+    title: 'IT Admin',
+    items: [
+      { label: 'System logs', to: '/system/logs', anyOf: ['system.logs_view'], requireRole: 'it_admin' },
     ],
   },
 ]

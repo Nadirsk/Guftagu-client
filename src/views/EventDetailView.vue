@@ -129,8 +129,10 @@ async function verify() {
   }
 }
 
-const phaseTone: Record<EventPhase, '' | 'success' | 'warning' | 'danger' | 'info'> = {
-  live: 'success', upcoming: 'warning', ended: 'info', draft: '', cancelled: 'danger',
+// 'draft' deliberately has no entry — ElTag only accepts primary/success/info/warning/
+// danger, not '', so its plain (typeless) look comes from omitting the prop entirely.
+const phaseTone: Partial<Record<EventPhase, 'success' | 'warning' | 'danger' | 'info'>> = {
+  live: 'success', upcoming: 'warning', ended: 'info', cancelled: 'danger',
 }
 
 function when(iso: string | null): string {
@@ -163,7 +165,7 @@ function when(iso: string | null): string {
     <div v-if="event" class="panel mb-5 flex flex-wrap items-center gap-x-8 gap-y-3 px-4 py-3">
       <div>
         <div class="eyebrow">Phase</div>
-        <el-tag :type="phaseTone[event.phase]" size="small">{{ event.phase }}</el-tag>
+        <el-tag :type="phaseTone[event.phase] ?? undefined" size="small">{{ event.phase }}</el-tag>
       </div>
       <div>
         <div class="eyebrow">Status set to</div>

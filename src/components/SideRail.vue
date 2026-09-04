@@ -19,7 +19,11 @@ const emit = defineEmits<{ close: [] }>()
 const sections = computed(() =>
   NAV.map((section) => ({
     ...section,
-    items: section.items.filter((item) => item.anyOf.length === 0 || auth.canAny(item.anyOf)),
+    items: section.items.filter(
+      (item) =>
+        (item.anyOf.length === 0 || auth.canAny(item.anyOf)) &&
+        (!item.requireRole || auth.roleKey === item.requireRole),
+    ),
   })).filter((section) => section.items.length > 0),
 )
 </script>

@@ -14,8 +14,12 @@ const roomId = Number(route.params.id)
 const detail = ref<RoomDetail | null>(null)
 const categories = ref<RoomCategoryRow[]>([])
 const loading = ref(true)
+const membersDialogOpen = ref(false)
 
 const room = computed(() => detail.value?.room ?? null)
+
+/** The sidebar shows the first few; "See all" opens the full roster in a dialog. */
+const visibleMembers = computed(() => detail.value?.members.slice(0, 4) ?? [])
 
 onMounted(async () => {
   await load()
@@ -84,6 +88,18 @@ async function toggleSeat(seat: RoomSeatRow) {
   try {
     await api.post(`/admin/rooms/${roomId}/seats/${seat.seat_number}/lock`, { locked: locking })
     ElMessage.success(locking ? 'Seat locked' : 'Seat unlocked')
+    await load()
+  } catch (e) {
+    if (e instanceof ApiError) ElMessage.error(e.message)
+  }
+}
+
+async function toggleVip(seat: RoomSeatRow) {
+  const marking = !seat.is_vip
+
+  try {
+    await api.post(`/admin/rooms/${roomId}/seats/${seat.seat_number}/vip`, { vip: marking })
+    ElMessage.success(marking ? 'Seat marked VIP' : 'Seat unmarked')
     await load()
   } catch (e) {
     if (e instanceof ApiError) ElMessage.error(e.message)
@@ -330,6 +346,16 @@ async function warnMember(member: { user_id: number; display_name: string | null
           </div>
         </div>
 
+        <div class="flex flex-wrap items-center gap-2 border-b border-[var(--color-edge)] px-4 py-2.5">
+          <span class="eyebrow">Seat template</span>
+          <span class="key text-[14px]">
+            {{ detail?.seat_template ? `${detail.seat_template.name}` : 'None decided — VIP seats set individually' }}
+          </span>
+          <span v-if="detail?.seat_template" class="eyebrow">
+            VIP at {{ detail.seat_template.vip_positions.join(', ') || 'none' }}
+          </span>
+        </div>
+
         <div class="grid grid-cols-3 gap-2 p-4 sm:grid-cols-4 lg:grid-cols-5">
           <div v-for="seat in detail?.seats ?? []" :key="seat.seat_number" class="relative aspect-square">
             <button
@@ -341,6 +367,7 @@ async function warnMember(member: { user_id: number; display_name: string | null
                   : seat.user
                     ? 'border-[var(--color-signal)] bg-[color-mix(in_srgb,var(--color-signal)_10%,transparent)]'
                     : 'border-[var(--color-edge)] border-dashed',
+                seat.is_vip ? 'ring-2 ring-[var(--color-signal)] ring-offset-1 ring-offset-[var(--color-panel)]' : '',
               ]"
               style="border-radius: 3px"
               :title="
@@ -366,11 +393,20 @@ async function warnMember(member: { user_id: number; display_name: string | null
               <span v-else class="eyebrow text-[var(--color-legend-dim)]">empty</span>
             </button>
 
+            <!-- Persistent, readable, whenever the seat is VIP — regardless of who (if
+                 anyone) is sitting there. The corner star underneath is the toggle. -->
+            <span
+              v-if="seat.is_vip"
+              class="absolute top-0.5 left-0.5 rounded-sm bg-[var(--color-signal)] px-1 text-[9px] font-bold leading-tight tracking-wide text-[var(--color-recess)]"
+            >
+              VIP
+            </span>
+
             <!-- A prior sanction in this room, worth seeing before deciding — not a click
                  target, just a signal. -->
             <span
               v-if="seat.user && seat.user.prior_sanctions_here > 0"
-              class="absolute top-0.5 left-0.5 rounded-full bg-[var(--color-signal)] px-1 text-[9px] leading-tight text-white"
+              class="absolute bottom-0.5 left-0.5 rounded-full bg-[var(--color-cut)] px-1 text-[9px] leading-tight text-white"
               :title="`${seat.user.prior_sanctions_here} prior sanction(s) in this room`"
             >
               {{ seat.user.prior_sanctions_here }}
@@ -386,19 +422,33 @@ async function warnMember(member: { user_id: number; display_name: string | null
             >
               {{ seat.is_muted_by_host ? '🔇' : '🎙' }}
             </button>
+
+            <!-- VIP applies to the seat itself, occupied or not, so this shows regardless
+                 of whether anyone is sitting there. -->
+            <button
+              v-permission="'rooms.seat_vip'"
+              type="button"
+              class="absolute bottom-0.5 right-0.5 rounded-sm bg-[var(--color-raised)] px-1 text-[9px] leading-tight"
+              :class="seat.is_vip ? 'text-[var(--color-signal)]' : 'text-[var(--color-legend)] hover:text-[var(--color-signal)]'"
+              :title="seat.is_vip ? 'VIP seat — click to unmark' : 'Mark this seat VIP'"
+              @click.stop="toggleVip(seat)"
+            >
+              {{ seat.is_vip ? '★' : '☆' }}
+            </button>
           </div>
         </div>
 
         <p class="eyebrow border-t border-[var(--color-edge)] px-4 py-2 leading-relaxed">
           click a seat to lock or unlock it · locking an occupied seat turns the occupant out ·
-          the small icon mutes or unmutes without locking the seat
+          the mic icon mutes without locking · the star marks a seat VIP, independent of who's on it
         </p>
       </section>
 
       <aside class="space-y-4">
         <section class="panel">
-          <div class="border-b border-[var(--color-edge)] px-4 py-2.5">
+          <div class="flex items-baseline justify-between border-b border-[var(--color-edge)] px-4 py-2.5">
             <div class="eyebrow">In the room</div>
+            <div class="key text-[var(--color-legend)]">{{ detail?.members.length ?? 0 }}</div>
           </div>
           <div
             v-if="!detail?.members.length"
@@ -406,51 +456,59 @@ async function warnMember(member: { user_id: number; display_name: string | null
           >
             Nobody is in this room.
           </div>
-          <ul v-else class="divide-y divide-[var(--color-edge)]">
-            <li
-              v-for="member in detail.members"
-              :key="member.user_id"
-              class="flex items-center justify-between gap-2 px-4 py-2"
-            >
-              <RouterLink
-                :to="`/users/${member.user_id}`"
-                class="min-w-0 text-[13px] hover:text-[var(--color-signal)]"
+          <template v-else>
+            <ul class="divide-y divide-[var(--color-edge)]">
+              <li
+                v-for="member in visibleMembers"
+                :key="member.user_id"
+                class="flex items-center justify-between gap-2 px-4 py-2"
               >
-                <div class="truncate">
-                  {{ member.display_name ?? member.guftagu_id }}
-                  <span v-if="member.prior_sanctions_here > 0" class="eyebrow text-[var(--color-signal)]">
-                    ({{ member.prior_sanctions_here }})
-                  </span>
-                </div>
-                <div class="eyebrow">{{ member.role }}</div>
-              </RouterLink>
-
-              <div class="flex shrink-0 items-center gap-1">
-                <span class="key text-[var(--color-legend-dim)]">
-                  {{ member.joined_at ? new Date(member.joined_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '' }}
-                </span>
-                <el-button
-                  v-if="seatByUser.get(member.user_id)"
-                  v-permission="'moderation.mute_user'"
-                  size="small"
-                  text
-                  @click="
-                    seatByUser.get(member.user_id)!.is_muted_by_host
-                      ? unmuteSeat(seatByUser.get(member.user_id)!)
-                      : muteSeat(seatByUser.get(member.user_id)!)
-                  "
+                <RouterLink
+                  :to="`/users/${member.user_id}`"
+                  class="min-w-0 text-[13px] hover:text-[var(--color-signal)]"
                 >
-                  {{ seatByUser.get(member.user_id)!.is_muted_by_host ? 'Unmute' : 'Mute' }}
-                </el-button>
-                <el-button v-permission="'moderation.warn_user'" size="small" text @click="warnMember(member)">
-                  Warn
-                </el-button>
-                <el-button v-permission="'moderation.kick_user'" size="small" text @click="kickMember(member)">
-                  Kick
-                </el-button>
-              </div>
-            </li>
-          </ul>
+                  <div class="truncate">
+                    {{ member.display_name ?? member.guftagu_id }}
+                    <span v-if="member.prior_sanctions_here > 0" class="eyebrow text-[var(--color-signal)]">
+                      ({{ member.prior_sanctions_here }})
+                    </span>
+                  </div>
+                  <div class="eyebrow">{{ member.role }}</div>
+                </RouterLink>
+
+                <div class="flex shrink-0 items-center gap-1">
+                  <span class="key text-[var(--color-legend-dim)]">
+                    {{ member.joined_at ? new Date(member.joined_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '' }}
+                  </span>
+                  <el-button
+                    v-if="seatByUser.get(member.user_id)"
+                    v-permission="'moderation.mute_user'"
+                    size="small"
+                    text
+                    @click="
+                      seatByUser.get(member.user_id)!.is_muted_by_host
+                        ? unmuteSeat(seatByUser.get(member.user_id)!)
+                        : muteSeat(seatByUser.get(member.user_id)!)
+                    "
+                  >
+                    {{ seatByUser.get(member.user_id)!.is_muted_by_host ? 'Unmute' : 'Mute' }}
+                  </el-button>
+                  <el-button v-permission="'moderation.warn_user'" size="small" text @click="warnMember(member)">
+                    Warn
+                  </el-button>
+                  <el-button v-permission="'moderation.kick_user'" size="small" text @click="kickMember(member)">
+                    Kick
+                  </el-button>
+                </div>
+              </li>
+            </ul>
+
+            <div v-if="detail.members.length > 4" class="border-t border-[var(--color-edge)] px-4 py-2 text-center">
+              <el-button size="small" text @click="membersDialogOpen = true">
+                See all {{ detail.members.length }}
+              </el-button>
+            </div>
+          </template>
         </section>
 
         <section class="panel px-4 py-3">
@@ -462,5 +520,54 @@ async function warnMember(member: { user_id: number; display_name: string | null
         </section>
       </aside>
     </div>
+
+    <el-dialog v-model="membersDialogOpen" title="In the room" width="480">
+      <ul v-if="detail" class="divide-y divide-[var(--color-edge)]">
+        <li
+          v-for="member in detail.members"
+          :key="member.user_id"
+          class="flex items-center justify-between gap-2 py-2"
+        >
+          <RouterLink
+            :to="`/users/${member.user_id}`"
+            class="min-w-0 text-[13px] hover:text-[var(--color-signal)]"
+            @click="membersDialogOpen = false"
+          >
+            <div class="truncate">
+              {{ member.display_name ?? member.guftagu_id }}
+              <span v-if="member.prior_sanctions_here > 0" class="eyebrow text-[var(--color-signal)]">
+                ({{ member.prior_sanctions_here }})
+              </span>
+            </div>
+            <div class="eyebrow">{{ member.role }}</div>
+          </RouterLink>
+
+          <div class="flex shrink-0 items-center gap-1">
+            <span class="key text-[var(--color-legend-dim)]">
+              {{ member.joined_at ? new Date(member.joined_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '' }}
+            </span>
+            <el-button
+              v-if="seatByUser.get(member.user_id)"
+              v-permission="'moderation.mute_user'"
+              size="small"
+              text
+              @click="
+                seatByUser.get(member.user_id)!.is_muted_by_host
+                  ? unmuteSeat(seatByUser.get(member.user_id)!)
+                  : muteSeat(seatByUser.get(member.user_id)!)
+              "
+            >
+              {{ seatByUser.get(member.user_id)!.is_muted_by_host ? 'Unmute' : 'Mute' }}
+            </el-button>
+            <el-button v-permission="'moderation.warn_user'" size="small" text @click="warnMember(member)">
+              Warn
+            </el-button>
+            <el-button v-permission="'moderation.kick_user'" size="small" text @click="kickMember(member)">
+              Kick
+            </el-button>
+          </div>
+        </li>
+      </ul>
+    </el-dialog>
   </div>
 </template>

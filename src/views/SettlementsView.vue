@@ -23,9 +23,10 @@ const filters = ref({ status: '', agency_id: '' as number | '' })
 const generateDialog = ref(false)
 const generateForm = ref({ agency_id: null as number | null, period_start: '', period_end: '' })
 
-const STATUS_TYPE: Record<string, 'success' | 'warning' | 'info' | 'danger' | ''> = {
+// 'admin_approved' deliberately has no entry — ElTag only accepts primary/success/
+// info/warning/danger, not '', so its plain (typeless) look comes from omitting the prop.
+const STATUS_TYPE: Partial<Record<string, 'success' | 'warning' | 'info' | 'danger'>> = {
   paid: 'success',
-  admin_approved: '',
   manager_raised: 'warning',
   draft: 'info',
   rejected: 'danger',
@@ -262,7 +263,7 @@ const selectedTotal = computed(() =>
             </el-table-column>
             <el-table-column label="Status" width="140">
               <template #default="{ row }">
-                <el-tag :type="STATUS_TYPE[row.status]" size="small">{{ row.status.replace('_', ' ') }}</el-tag>
+                <el-tag :type="STATUS_TYPE[row.status] ?? undefined" size="small">{{ row.status.replace('_', ' ') }}</el-tag>
                 <!-- If a split ever stopped adding up, it should be visible here, not
                      only in a log. -->
                 <el-tag v-if="!row.splits_balance" type="danger" size="small" class="mt-1">split leak</el-tag>

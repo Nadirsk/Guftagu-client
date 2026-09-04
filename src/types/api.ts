@@ -211,6 +211,9 @@ export interface WalletSummary {
   lifetime_diamonds_earned: number
   is_frozen: boolean
   version?: number
+  /** Derived from the lifetime counters above against the level ladder, unless overridden. */
+  wealth_level: ResolvedLevel
+  charm_level: ResolvedLevel
 }
 
 export interface LedgerRow {
@@ -327,6 +330,7 @@ export interface RoomRow {
 export interface RoomSeatRow {
   seat_number: number
   is_locked: boolean
+  is_vip: boolean
   is_muted_by_host: boolean
   is_camera_on: boolean
   occupied_at: string | null
@@ -342,6 +346,7 @@ export interface RoomSeatRow {
 
 export interface RoomDetail {
   room: RoomRow
+  seat_template: { id: number; name: string; total_seats: number; vip_positions: number[] } | null
   seats: RoomSeatRow[]
   members: Array<{
     user_id: number
@@ -429,6 +434,105 @@ export interface GiftCategoryRow {
   gift_count: number
 }
 
+/** A reusable "N seats, these ones VIP" layout (docs/02 §3.2). */
+export interface RoomSeatTemplateRow {
+  id: number
+  name: string
+  total_seats: number
+  vip_positions: number[]
+  vip_seats: number
+  is_active: boolean
+}
+
+export type LevelType = 'wealth' | 'charm'
+
+/**
+ * A rung on the wealth/charm ladder (GFT-027, docs/00 §7). A user's actual level is
+ * never stored — it is resolved server-side from wallet lifetime totals against rows
+ * like this one, or from an admin override.
+ */
+export interface WealthCharmLevelRow {
+  id: number
+  type: LevelType
+  level: number
+  name_en: string
+  name_hi: string | null
+  threshold: number
+  badge_url: string | null
+  is_active: boolean
+}
+
+/**
+ * One rung of the monthly gift-target ladder (mehfil's "Policies", ported) — separate
+ * from HostTargetRow, which is a bespoke per-host target, not a shared ladder.
+ */
+export interface GiftTargetPolicyRow {
+  id: number
+  time_minutes: number
+  target_coins: number
+  host_reward_paise: number
+  agency_reward_paise: number
+  is_active: boolean
+}
+
+/** A host's standing against the ladder for one calendar month. */
+export interface HostGiftTargetResultRow {
+  id: number
+  host: {
+    id: number
+    display_name: string | null
+    agency: { id: number; name: string } | null
+  }
+  period: string
+  coins_sent: number
+  minutes_live: number
+  policy_id: number | null
+  policy: { target_coins: number; time_minutes: number } | null
+  host_reward_paise: number
+  agency_reward_paise: number
+  evaluated_at: string | null
+}
+
+/**
+ * One row of `/admin/hosts/gift-targets/tracker` — always present per active host,
+ * whether their month has been evaluated yet or is still live. See HostGiftTargetResultRow
+ * for the (evaluated-only) results list this powers when `is_frozen` is true.
+ */
+export interface GiftTargetTrackerRow {
+  host: {
+    id: number
+    guftagu_id: string | null
+    display_name: string | null
+    agency: { id: number; name: string } | null
+  }
+  period: string
+  coins_sent: number
+  minutes_live: number
+  target: { id: number; target_coins: number; time_minutes: number } | null
+  coins_pct: number | null
+  minutes_pct: number | null
+  overall_pct: number | null
+  host_reward_paise: number
+  agency_reward_paise: number
+  is_frozen: boolean
+  source: string
+}
+
+/** The wealth or charm level attached to a user's wallet in the detail view. */
+export interface ResolvedLevel {
+  id: number | null
+  level: number | null
+  name_en: string | null
+  badge_url: string | null
+  is_override: boolean
+}
+
+export interface ImageUploadResult {
+  url: string
+  path: string
+  size: number
+}
+
 export interface VipTierRow {
   id: number
   level: number
@@ -451,16 +555,6 @@ export interface VipTiersResult {
 }
 
 export interface CosmeticsResult {
-  frames: Array<{
-    id: number
-    name: string
-    image_url: string | null
-    animation_url: string | null
-    source: string
-    coin_price: number
-    vip_level: number | null
-    is_active: boolean
-  }>
   badges: Array<{
     id: number
     key: string
@@ -471,19 +565,35 @@ export interface CosmeticsResult {
     is_auto_awarded: boolean
     is_active: boolean
   }>
-  entrance_effects: Array<{
-    id: number
-    name: string
-    animation_url: string | null
-    animation_type: string | null
-    duration_ms: number | null
-    trigger: string
-    vip_level: number | null
-    min_gift_coin_value: number | null
-    is_active: boolean
-  }>
-  triggers: string[]
+}
+
+// ------------------------------------------------------------- store items (the Mall)
+
+export type StoreItemType = 'frame' | 'bubble' | 'entry_banner' | 'entrance_effect'
+
+export interface StoreItemRow {
+  id: number
+  type: StoreItemType
+  name: string
+  image_url: string | null
+  animation_url: string | null
+  animation_type: string | null
+  duration_ms: number | null
+  trigger: string | null
+  min_gift_coin_value: number | null
+  source: string | null
+  coin_price: number
+  rental_days: number | null
+  required_vip_tier_id: number | null
+  vip_level: number | null
+  is_active: boolean
+}
+
+export interface StoreItemsResult {
+  items: StoreItemRow[]
+  types: StoreItemType[]
   sources: string[]
+  triggers: string[]
 }
 
 // ---------------------------------------------------------------- epic A.7
@@ -1502,4 +1612,31 @@ export interface SilentJoinResult {
   room_id: number
   audio: boolean
   note: string
+}
+
+// ---------------------------------------------------------------- system logs (IT Admin)
+
+export interface LaravelLogEntry {
+  timestamp: string
+  level: string
+  message: string
+  stack: string | null
+}
+
+export interface LaravelLogResult {
+  entries: LaravelLogEntry[]
+  truncated: boolean
+  file_size: number
+}
+
+export interface FrontendErrorLogRow {
+  id: number
+  level: string
+  message: string
+  stack: string | null
+  source_url: string | null
+  user_agent: string | null
+  meta: Record<string, unknown> | null
+  admin: { id: number; name: string } | null
+  created_at: string | null
 }

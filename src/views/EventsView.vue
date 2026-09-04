@@ -152,11 +152,12 @@ function open(row: EventRow) {
   void router.push({ name: 'event-detail', params: { id: row.id } })
 }
 
-const phaseTone: Record<EventPhase, '' | 'success' | 'warning' | 'danger' | 'info'> = {
+// 'draft' deliberately has no entry — ElTag only accepts primary/success/info/warning/
+// danger, not '', so its plain (typeless) look comes from omitting the prop entirely.
+const phaseTone: Partial<Record<EventPhase, 'success' | 'warning' | 'danger' | 'info'>> = {
   live: 'success',
   upcoming: 'warning',
   ended: 'info',
-  draft: '',
   cancelled: 'danger',
 }
 
@@ -164,6 +165,11 @@ function when(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   })
+}
+
+/** A draft whose window already passed can never publish — the server rejects it every time. */
+function isStaleDraft(row: EventRow): boolean {
+  return row.status === 'draft' && new Date(row.ends_at).getTime() <= Date.now()
 }
 </script>
 
@@ -207,7 +213,7 @@ function when(iso: string): string {
               <div class="truncate text-[14px] font-semibold">{{ row.title_en }}</div>
               <div class="eyebrow mt-0.5">{{ row.type.replace('_', ' ') }}</div>
             </div>
-            <el-tag :type="phaseTone[row.phase]" size="small">{{ row.phase }}</el-tag>
+            <el-tag :type="phaseTone[row.phase] ?? undefined" size="small">{{ row.phase }}</el-tag>
           </div>
 
           <div class="mt-3 space-y-0.5">
@@ -229,15 +235,21 @@ function when(iso: string): string {
         </button>
 
         <div class="flex gap-2 border-t border-[var(--color-edge)] px-4 py-2">
-          <el-button
+          <el-tooltip
             v-if="row.status === 'draft'"
-            v-permission="'events.manage'"
-            size="small"
-            type="primary"
-            @click="publish(row)"
+            :disabled="!isStaleDraft(row)"
+            content="This window already ended — move the dates forward before publishing."
           >
-            Publish
-          </el-button>
+            <el-button
+              v-permission="'events.manage'"
+              size="small"
+              type="primary"
+              :disabled="isStaleDraft(row)"
+              @click="publish(row)"
+            >
+              Publish
+            </el-button>
+          </el-tooltip>
           <el-button
             v-if="row.status === 'scheduled' && row.phase !== 'ended'"
             v-permission="'events.manage'"

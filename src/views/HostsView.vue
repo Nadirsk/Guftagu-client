@@ -1,20 +1,26 @@
 <script setup lang="ts">
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import EmptyState from '@/components/EmptyState.vue'
 import PageHead from '@/components/PageHead.vue'
 import { ApiError, api } from '@/lib/api'
-import { bp, money } from '@/lib/money'
-import type { AgencyRow, HostApplicationRow, HostRow, HostTargetRow } from '@/types/api'
+import { bp, moneyShort } from '@/lib/money'
+import type { AgencyRow, GiftTargetTrackerRow, HostApplicationRow, HostRow } from '@/types/api'
 
-/** GFT-089 (approval queue) and GFT-090 (targets with progress bars). */
+/**
+ * GFT-089 (approval queue) and GFT-090 (targets). The Targets tab itself now tracks the
+ * gift-target ladder (coins spent sending gifts + live minutes) rather than the older
+ * per-host diamond target below — that creation flow is still here (the "Set target"
+ * button on the Hosts tab), just no longer the thing this tab displays.
+ */
 const tab = ref('applications')
 
 const applications = ref<HostApplicationRow[]>([])
 const hosts = ref<HostRow[]>([])
-const targets = ref<HostTargetRow[]>([])
+const giftTracker = ref<GiftTargetTrackerRow[]>([])
+const trackerPeriod = ref(new Date().toISOString().slice(0, 7))
 const agencies = ref<AgencyRow[]>([])
 
 const loading = ref(true)
@@ -37,7 +43,7 @@ const targetForm = ref({
 })
 
 onMounted(async () => {
-  await Promise.all([loadApplications(), loadHosts(), loadTargets(), loadAgencies()])
+  await Promise.all([loadApplications(), loadHosts(), loadGiftTracker(), loadAgencies()])
   loading.value = false
 })
 
@@ -75,10 +81,12 @@ async function loadHosts() {
   }
 }
 
-async function loadTargets() {
+async function loadGiftTracker() {
   try {
-    const { data } = await api.get<HostTargetRow[]>('/admin/hosts/targets', { per_page: 50 })
-    targets.value = data
+    const { data } = await api.get<GiftTargetTrackerRow[]>('/admin/hosts/gift-targets/tracker', {
+      period: trackerPeriod.value,
+    })
+    giftTracker.value = data
   } catch (e) {
     if (e instanceof ApiError && e.code !== 'PERMISSION_DENIED') ElMessage.error(e.message)
   }
@@ -160,7 +168,6 @@ async function saveTarget() {
     await api.post(`/admin/hosts/${targetHost.value.id}/targets`, targetForm.value)
     ElMessage.success('Target set')
     targetDialog.value = false
-    await loadTargets()
   } catch (e) {
     if (e instanceof ApiError) ElMessage.error(e.message)
   } finally {
@@ -168,22 +175,12 @@ async function saveTarget() {
   }
 }
 
-async function evaluateTarget(target: HostTargetRow) {
-  try {
-    await ElMessageBox.confirm(
-      'This freezes the achievement and the incentive. They will not move afterwards, even if a late credit lands.',
-      'Close out this target?',
-      { confirmButtonText: 'Evaluate', cancelButtonText: 'Cancel', type: 'warning' },
-    )
-  } catch {
-    return
-  }
-
+async function evaluateAllGiftTargets() {
   busy.value = true
   try {
-    await api.post(`/admin/hosts/targets/${target.id}/evaluate`)
-    ElMessage.success('Target evaluated')
-    await loadTargets()
+    const { message } = await api.post('/admin/hosts/gift-targets/evaluate-all', { period: trackerPeriod.value })
+    ElMessage.success(message)
+    await loadGiftTracker()
   } catch (e) {
     if (e instanceof ApiError) ElMessage.error(e.message)
   } finally {
@@ -332,7 +329,7 @@ function barColour(pct: number | null): string {
             <el-table-column width="110" align="right">
               <template #default="{ row }">
                 <el-button v-permission="'hosts.target_manage'" size="small" text @click="startTarget(row)">
-                  Set target
+                  Set diamond target
                 </el-button>
               </template>
             </el-table-column>
@@ -340,73 +337,97 @@ function barColour(pct: number | null): string {
         </div>
       </el-tab-pane>
 
-      <!-- GFT-090 -->
+      <!-- GFT-090, now tracking the gift-target ladder rather than diamonds — see
+           /gift-targets for the ladder itself (rungs, rewards). -->
       <el-tab-pane label="Targets" name="targets">
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+          <span class="eyebrow">Month</span>
+          <el-date-picker
+            v-model="trackerPeriod"
+            type="month"
+            value-format="YYYY-MM"
+            size="small"
+            class="w-40"
+            @change="loadGiftTracker"
+          />
+          <el-button
+            v-permission="'hosts.gift_target_manage'"
+            size="small"
+            type="primary"
+            :loading="busy"
+            @click="evaluateAllGiftTargets"
+          >
+            Evaluate every host
+          </el-button>
+          <RouterLink to="/gift-targets" class="eyebrow ml-auto hover:text-[var(--color-signal)]">
+            manage the ladder →
+          </RouterLink>
+        </div>
+
         <div class="panel">
           <EmptyState
-            v-if="targets.length === 0"
-            title="No targets set"
-            body="A target gives a host something to earn an incentive against. Set one from the Hosts tab."
+            v-if="giftTracker.length === 0"
+            title="No hosts to track"
+            body="Approve a host first — every approved host tracks against the gift-target ladder automatically."
           />
 
           <ul v-else>
             <li
-              v-for="t in targets"
-              :key="t.id"
+              v-for="row in giftTracker"
+              :key="row.host.id"
               class="border-b border-[var(--color-edge)] px-4 py-3 last:border-b-0"
             >
               <div class="flex flex-wrap items-baseline gap-x-3">
-                <RouterLink :to="`/hosts/${t.host_id}`" class="key hover:text-[var(--color-signal)]">
-                  {{ t.guftagu_id }}
+                <RouterLink :to="`/hosts/${row.host.id}`" class="key hover:text-[var(--color-signal)]">
+                  {{ row.host.guftagu_id }}
                 </RouterLink>
-                <span class="eyebrow">{{ t.agency ?? 'no agency' }}</span>
-                <span class="eyebrow">{{ t.period_start }} → {{ t.period_end }}</span>
-                <el-tag
-                  v-if="t.status !== 'active'"
-                  size="small"
-                  :type="t.status === 'achieved' ? 'success' : 'info'"
-                  class="ml-auto"
-                >
-                  {{ t.status }}
-                </el-tag>
+                <span class="eyebrow">{{ row.host.agency?.name ?? 'no agency' }}</span>
+                <el-tag v-if="row.is_frozen" size="small" type="info" class="ml-auto">evaluated</el-tag>
                 <span v-else class="eyebrow ml-auto">running</span>
               </div>
 
-              <div class="mt-2 flex items-center gap-3">
-                <div class="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-edge)]">
-                  <div
-                    class="h-full rounded-full transition-all"
-                    :style="{
-                      width: `${Math.min(100, t.achievement_pct ?? 0)}%`,
-                      background: barColour(t.achievement_pct),
-                    }"
-                  />
+              <template v-if="row.target">
+                <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <div class="eyebrow mb-1">
+                      coins spent — {{ row.coins_sent.toLocaleString() }} / {{ row.target.target_coins.toLocaleString() }}
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <div class="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-edge)]">
+                        <div
+                          class="h-full rounded-full transition-all"
+                          :style="{ width: `${Math.min(100, row.coins_pct ?? 0)}%`, background: barColour(row.coins_pct) }"
+                        />
+                      </div>
+                      <span class="key w-12 text-right">{{ row.coins_pct === null ? '—' : `${row.coins_pct}%` }}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="eyebrow mb-1">
+                      live minutes — {{ row.minutes_live }} / {{ row.target.time_minutes }}
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <div class="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-edge)]">
+                        <div
+                          class="h-full rounded-full transition-all"
+                          :style="{ width: `${Math.min(100, row.minutes_pct ?? 0)}%`, background: barColour(row.minutes_pct) }"
+                        />
+                      </div>
+                      <span class="key w-12 text-right">{{ row.minutes_pct === null ? '—' : `${row.minutes_pct}%` }}</span>
+                    </div>
+                  </div>
                 </div>
-                <span class="key w-14 text-right">{{ t.achievement_pct === null ? '—' : `${t.achievement_pct}%` }}</span>
-              </div>
 
-              <div class="mt-1 flex flex-wrap items-baseline gap-x-4">
-                <span class="eyebrow">
-                  {{ (t.achieved_diamonds ?? 0).toLocaleString() }} / {{ t.target_diamonds.toLocaleString() }} diamonds
-                </span>
-                <span v-if="t.incentive_paise !== null" class="eyebrow">
-                  incentive {{ money(t.incentive_paise) }} at {{ bp(t.incentive_bp) }}
-                </span>
-                <!-- Whether these numbers are still moving matters more than their value. -->
-                <span class="eyebrow ml-auto">{{ t.source }}</span>
-                <el-button
-                  v-if="!t.is_frozen && !t.is_open"
-                  v-permission="'hosts.target_manage'"
-                  size="small"
-                  text
-                  :loading="busy"
-                  @click="evaluateTarget(t)"
-                >
-                  Close out
-                </el-button>
-              </div>
-
-              <p v-if="t.note" class="eyebrow mt-1 leading-relaxed">{{ t.note }}</p>
+                <div class="mt-2 flex flex-wrap items-baseline gap-x-4">
+                  <span v-if="row.is_frozen" class="eyebrow">
+                    earned {{ moneyShort(row.host_reward_paise) }}
+                    <template v-if="row.agency_reward_paise > 0"> · agency {{ moneyShort(row.agency_reward_paise) }}</template>
+                  </span>
+                  <span class="eyebrow ml-auto">{{ row.source }}</span>
+                </div>
+              </template>
+              <p v-else class="eyebrow mt-2">no active gift-target rungs are configured yet</p>
             </li>
           </ul>
         </div>
@@ -431,7 +452,7 @@ function barColour(pct: number | null): string {
     </template>
   </el-dialog>
 
-  <el-dialog v-model="targetDialog" :title="`Target for ${targetHost?.guftagu_id ?? ''}`" width="440px">
+  <el-dialog v-model="targetDialog" :title="`Diamond target for ${targetHost?.guftagu_id ?? ''}`" width="440px">
     <el-form label-position="top">
       <el-form-item label="Period">
         <div class="flex w-full gap-2">

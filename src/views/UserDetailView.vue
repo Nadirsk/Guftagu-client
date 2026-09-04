@@ -7,7 +7,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import PageHead from '@/components/PageHead.vue'
 import WalletAdjustDialog from '@/components/WalletAdjustDialog.vue'
 import { ApiError, api } from '@/lib/api'
-import type { Currency, LedgerIntegrity, LedgerRow, UserDetail } from '@/types/api'
+import type { Currency, LedgerIntegrity, LedgerRow, LevelType, UserDetail, WealthCharmLevelRow } from '@/types/api'
 
 /** GFT-032 (detail tabs) and GFT-033 (KYC review). */
 const route = useRoute()
@@ -17,10 +17,6 @@ const detail = ref<UserDetail | null>(null)
 const loading = ref(true)
 const tab = ref<'overview' | 'wallet' | 'kyc' | 'history'>('overview')
 
-// PII stays hidden until asked for, because asking is what gets recorded.
-const revealed = ref<{ phone: string; email: string | null } | null>(null)
-const revealing = ref(false)
-
 const ledger = ref<LedgerRow[]>([])
 const ledgerCurrency = ref<Currency>('coin')
 const ledgerLoading = ref(false)
@@ -29,10 +25,72 @@ const integrity = ref<LedgerIntegrity | null>(null)
 const adjustOpen = ref(false)
 const adjustDirection = ref<'credit' | 'debit'>('credit')
 
+// -------------------------------------------------------------- PII reveal
+// The list stays masked, but the detail page shows the real phone/email straight away —
+// still gated by `users.view_pii` and still audit-logged server-side, just without an
+// extra click. A caller without that permission silently keeps the masked fallback.
+const pii = ref<{ phone: string; email: string } | null>(null)
+
+async function revealPii() {
+  try {
+    const { data } = await api.get<{ phone: string; email: string }>(`/admin/users/${userId}/pii`)
+    pii.value = data
+  } catch (e) {
+    if (e instanceof ApiError && e.code !== 'PERMISSION_DENIED') ElMessage.error(e.message)
+  }
+}
+
+// -------------------------------------------------------------- GFT-027
+const overrideOpen = ref(false)
+const overrideType = ref<LevelType>('wealth')
+const overrideLevelId = ref<number | null>(null)
+const overrideOptions = ref<WealthCharmLevelRow[]>([])
+const overrideLoading = ref(false)
+const overrideSaving = ref(false)
+
+function openOverride(type: LevelType) {
+  overrideType.value = type
+  overrideLevelId.value = (type === 'wealth' ? wallet.value?.wealth_level : wallet.value?.charm_level)?.id ?? null
+  overrideOpen.value = true
+  void loadOverrideOptions(type)
+}
+
+async function loadOverrideOptions(type: LevelType) {
+  overrideLoading.value = true
+  try {
+    const { data } = await api.get<WealthCharmLevelRow[]>('/admin/levels', { type })
+    overrideOptions.value = data
+  } catch (e) {
+    if (e instanceof ApiError) ElMessage.error(e.message)
+  } finally {
+    overrideLoading.value = false
+  }
+}
+
+async function submitOverride() {
+  overrideSaving.value = true
+  try {
+    await api.post(`/admin/users/${userId}/level-override`, {
+      type: overrideType.value,
+      level_id: overrideLevelId.value,
+    })
+    ElMessage.success(overrideLevelId.value === null ? 'Override cleared' : 'Level overridden')
+    overrideOpen.value = false
+    await load()
+  } catch (e) {
+    if (e instanceof ApiError) ElMessage.error(e.message)
+  } finally {
+    overrideSaving.value = false
+  }
+}
+
 const user = computed(() => detail.value?.user ?? null)
 const wallet = computed(() => detail.value?.wallet ?? null)
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  void revealPii()
+})
 
 async function load() {
   loading.value = true
@@ -77,31 +135,6 @@ async function checkIntegrity() {
       : ElMessage.error('This ledger does not reconcile')
   } catch (e) {
     if (e instanceof ApiError) ElMessage.error(e.message)
-  }
-}
-
-/** A.3a — the reveal is deliberate, and the confirmation says why. */
-async function reveal() {
-  try {
-    await ElMessageBox.confirm(
-      'Revealing this records who you are, whose details you looked at, and when. Continue only if you need it for this task.',
-      'Show the real contact details?',
-      { confirmButtonText: 'Reveal and record', cancelButtonText: 'Cancel', type: 'warning' },
-    )
-  } catch {
-    return
-  }
-
-  revealing.value = true
-  try {
-    const { data } = await api.get<{ phone: string; email: string | null }>(
-      `/admin/users/${userId}/pii`,
-    )
-    revealed.value = data
-  } catch (e) {
-    if (e instanceof ApiError) ElMessage.error(e.message)
-  } finally {
-    revealing.value = false
   }
 }
 
@@ -303,27 +336,15 @@ function when(iso: string | null): string {
               <div>
                 <div class="eyebrow">Phone</div>
                 <div class="key text-[14px]">
-                  {{ revealed?.phone ?? user?.phone_masked ?? '—' }}
+                  {{ pii?.phone ?? user?.phone_masked ?? '—' }}
                 </div>
               </div>
               <div>
                 <div class="eyebrow">Email</div>
                 <div class="key text-[14px]">
-                  {{ revealed?.email ?? user?.email_masked ?? '—' }}
+                  {{ pii?.email ?? user?.email_masked ?? '—' }}
                 </div>
               </div>
-
-              <div v-if="!revealed" v-permission="'users.view_pii'">
-                <el-button size="small" :loading="revealing" @click="reveal">
-                  Reveal real details
-                </el-button>
-                <p class="eyebrow mt-1.5 leading-relaxed">
-                  recorded against your name in the audit log
-                </p>
-              </div>
-              <p v-else class="eyebrow text-[var(--color-signal)]">
-                revealed · this access was recorded
-              </p>
             </div>
           </section>
 
@@ -447,6 +468,37 @@ function when(iso: string | null): string {
             <div class="panel px-4 py-3">
               <div class="eyebrow">Lifetime earned</div>
               <div class="key text-[17px]">{{ format(wallet.lifetime_diamonds_earned) }}</div>
+            </div>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="panel flex items-center gap-3 px-4 py-3">
+              <div class="flex-1">
+                <div class="eyebrow">Wealth level</div>
+                <div class="key text-[15px]">
+                  {{ wallet.wealth_level.name_en ?? 'Unranked' }}
+                  <el-tag v-if="wallet.wealth_level.is_override" size="small" type="warning" class="ml-1">
+                    override
+                  </el-tag>
+                </div>
+              </div>
+              <el-button v-permission.disable="'users.level_edit'" size="small" @click="openOverride('wealth')">
+                Override
+              </el-button>
+            </div>
+            <div class="panel flex items-center gap-3 px-4 py-3">
+              <div class="flex-1">
+                <div class="eyebrow">Charm level</div>
+                <div class="key text-[15px]">
+                  {{ wallet.charm_level.name_en ?? 'Unranked' }}
+                  <el-tag v-if="wallet.charm_level.is_override" size="small" type="warning" class="ml-1">
+                    override
+                  </el-tag>
+                </div>
+              </div>
+              <el-button v-permission.disable="'users.level_edit'" size="small" @click="openOverride('charm')">
+                Override
+              </el-button>
             </div>
           </div>
 
@@ -660,4 +712,34 @@ function when(iso: string | null): string {
     :direction="adjustDirection"
     @done="afterAdjust"
   />
+
+  <el-dialog
+    v-model="overrideOpen"
+    :title="`Override ${overrideType} level`"
+    width="420"
+  >
+    <p class="eyebrow mb-3 leading-relaxed">
+      Normally this is derived from lifetime coins spent / diamonds earned against the level
+      ladder. Setting one here overrides it until cleared.
+    </p>
+    <el-select
+      v-model="overrideLevelId"
+      v-loading="overrideLoading"
+      clearable
+      placeholder="Derive from lifetime totals"
+      class="w-full"
+    >
+      <el-option
+        v-for="option in overrideOptions"
+        :key="option.id"
+        :label="`${option.level} — ${option.name_en} (${option.threshold.toLocaleString()}+)`"
+        :value="option.id"
+      />
+    </el-select>
+
+    <template #footer>
+      <el-button @click="overrideOpen = false">Cancel</el-button>
+      <el-button type="primary" :loading="overrideSaving" @click="submitOverride">Save</el-button>
+    </template>
+  </el-dialog>
 </template>

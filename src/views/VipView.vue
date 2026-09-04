@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, toRef } from 'vue'
 
 import PageHead from '@/components/PageHead.vue'
 import { ApiError, api } from '@/lib/api'
+import { useHindiAutofill } from '@/lib/translate'
 import type { CosmeticsResult, VipTierRow, VipTiersResult } from '@/types/api'
 
 /** GFT-064 (tier editor with a privileges matrix) and GFT-065 (cosmetics). */
@@ -30,6 +31,7 @@ const form = reactive({
   privileges: [] as string[],
   is_active: true,
 })
+const tierHindi = useHindiAutofill(toRef(form, 'name_hi'))
 
 onMounted(async () => {
   await Promise.all([loadTiers(), loadCosmetics()])
@@ -244,69 +246,27 @@ function rupees(paise: number): string {
         </p>
       </el-tab-pane>
 
-      <el-tab-pane label="Cosmetics" name="cosmetics">
-        <div class="grid gap-4 lg:grid-cols-3">
-          <section class="panel">
-            <div class="border-b border-[var(--color-edge)] px-4 py-2.5">
-              <div class="eyebrow">Frames ({{ cosmetics?.frames.length ?? 0 }})</div>
-            </div>
-            <ul v-if="cosmetics?.frames.length" class="divide-y divide-[var(--color-edge)]">
-              <li v-for="frame in cosmetics.frames" :key="frame.id" class="px-4 py-2.5">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="truncate text-[13px]">{{ frame.name }}</span>
-                  <el-tag v-if="frame.vip_level" type="warning" size="small">
-                    VIP {{ frame.vip_level }}+
-                  </el-tag>
-                </div>
-                <div class="eyebrow mt-0.5">
-                  {{ frame.source }}<template v-if="frame.coin_price"> · {{ frame.coin_price.toLocaleString() }} coins</template>
-                </div>
-              </li>
-            </ul>
-            <p v-else class="px-4 py-6 text-center text-[13px] text-[var(--color-legend)]">
-              No frames defined.
-            </p>
-          </section>
-
-          <section class="panel">
-            <div class="border-b border-[var(--color-edge)] px-4 py-2.5">
-              <div class="eyebrow">Badges ({{ cosmetics?.badges.length ?? 0 }})</div>
-            </div>
-            <ul v-if="cosmetics?.badges.length" class="divide-y divide-[var(--color-edge)]">
-              <li v-for="badge in cosmetics.badges" :key="badge.id" class="px-4 py-2.5">
-                <div class="text-[13px]">{{ badge.name_en }}</div>
-                <div class="key text-[var(--color-legend)]">{{ badge.key }}</div>
-              </li>
-            </ul>
-            <p v-else class="px-4 py-6 text-center text-[13px] text-[var(--color-legend)]">
-              No badges defined.
-            </p>
-          </section>
-
-          <section class="panel">
-            <div class="border-b border-[var(--color-edge)] px-4 py-2.5">
-              <div class="eyebrow">Entrance effects ({{ cosmetics?.entrance_effects.length ?? 0 }})</div>
-            </div>
-            <ul v-if="cosmetics?.entrance_effects.length" class="divide-y divide-[var(--color-edge)]">
-              <li v-for="effect in cosmetics.entrance_effects" :key="effect.id" class="px-4 py-2.5">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="truncate text-[13px]">{{ effect.name }}</span>
-                  <el-tag v-if="effect.vip_level" type="warning" size="small">
-                    VIP {{ effect.vip_level }}+
-                  </el-tag>
-                </div>
-                <div class="eyebrow mt-0.5">on {{ effect.trigger.replace('_', ' ') }}</div>
-              </li>
-            </ul>
-            <p v-else class="px-4 py-6 text-center text-[13px] text-[var(--color-legend)]">
-              No entrance effects defined.
-            </p>
-          </section>
-        </div>
-
-        <p class="eyebrow mt-3 leading-relaxed">
-          artwork for these is a client input (CI-06) · gating is stored here and enforced by the app
+      <el-tab-pane label="Badges" name="cosmetics">
+        <p class="eyebrow mb-3 leading-relaxed">
+          Frames, bubbles, entry banners and entrance effects moved to
+          <RouterLink to="/store" class="underline">Store</RouterLink> — they are purchasable
+          catalogue items now. Badges stay here: the app awards them automatically, they are
+          never bought.
         </p>
+        <div class="panel">
+          <div class="border-b border-[var(--color-edge)] px-4 py-2.5">
+            <div class="eyebrow">Badges ({{ cosmetics?.badges.length ?? 0 }})</div>
+          </div>
+          <ul v-if="cosmetics?.badges.length" class="divide-y divide-[var(--color-edge)]">
+            <li v-for="badge in cosmetics.badges" :key="badge.id" class="px-4 py-2.5">
+              <div class="text-[13px]">{{ badge.name_en }}</div>
+              <div class="key text-[var(--color-legend)]">{{ badge.key }}</div>
+            </li>
+          </ul>
+          <p v-else class="px-4 py-6 text-center text-[13px] text-[var(--color-legend)]">
+            No badges defined.
+          </p>
+        </div>
       </el-tab-pane>
     </el-tabs>
   </div>
@@ -323,7 +283,7 @@ function rupees(paise: number): string {
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="eyebrow mb-1 block" for="v-en">Name (English)</label>
-          <el-input id="v-en" v-model="form.name_en" />
+          <el-input id="v-en" v-model="form.name_en" @input="tierHindi.onEnglishInput" />
           <p v-if="errors.name_en" class="mt-1 text-[12px] text-[var(--color-cut)]">{{ errors.name_en }}</p>
         </div>
         <div>

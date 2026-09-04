@@ -6,6 +6,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     /** Permission key required to open the route. Checked again server-side. */
     permission?: string
+    /** Role key required in addition to `permission` — not satisfied by Super Admin's bypass. */
+    requireRole?: string
     public?: boolean
     title?: string
   }
@@ -133,6 +135,12 @@ const router = createRouter({
           meta: { permission: 'hosts.view', title: 'Host' },
         },
         {
+          path: 'gift-targets',
+          name: 'gift-targets',
+          component: () => import('@/views/GiftTargetsView.vue'),
+          meta: { permission: 'hosts.gift_target_manage', title: 'Gift Targets' },
+        },
+        {
           path: 'settlements',
           name: 'settlements',
           component: () => import('@/views/SettlementsView.vue'),
@@ -193,6 +201,18 @@ const router = createRouter({
           meta: { permission: 'vip.view', title: 'VIP' },
         },
         {
+          path: 'store',
+          name: 'store',
+          component: () => import('@/views/StoreView.vue'),
+          meta: { permission: 'vip.view', title: 'Store' },
+        },
+        {
+          path: 'levels',
+          name: 'levels',
+          component: () => import('@/views/LevelsView.vue'),
+          meta: { permission: 'levels.view', title: 'Levels' },
+        },
+        {
           path: 'users',
           name: 'users',
           component: () => import('@/views/UsersView.vue'),
@@ -209,6 +229,12 @@ const router = createRouter({
           name: 'security',
           component: () => import('@/views/SecurityView.vue'),
           meta: { permission: 'settings.manage', title: 'Security' },
+        },
+        {
+          path: 'system/logs',
+          name: 'system-logs',
+          component: () => import('@/views/SystemLogsView.vue'),
+          meta: { permission: 'system.logs_view', requireRole: 'it_admin', title: 'System logs' },
         },
       ],
     },
@@ -239,6 +265,12 @@ router.beforeEach(async (to) => {
   // request would 403.
   if (to.meta.permission && !auth.can(to.meta.permission)) {
     return { name: 'overview', query: { denied: to.meta.permission } }
+  }
+
+  // Some screens are restricted to one specific role even though the permission system
+  // would otherwise allow it (e.g. Super Admin's blanket bypass) — see System logs.
+  if (to.meta.requireRole && auth.roleKey !== to.meta.requireRole) {
+    return { name: 'overview', query: { denied: to.meta.requireRole } }
   }
 
   return true

@@ -6,14 +6,20 @@ import { useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHead from '@/components/PageHead.vue'
 import { ApiError, api } from '@/lib/api'
+import { useAuthStore } from '@/stores/auth'
 import type { KycStatus, UserRow, UserStatus } from '@/types/api'
 
 /** GFT-031 — the user list. */
 const router = useRouter()
+const auth = useAuthStore()
 
 const rows = ref<UserRow[]>([])
 const loading = ref(true)
 const total = ref(0)
+
+// Real phone/email per row — still gated by `users.view_pii` and audit-logged per row
+// server-side, just fetched for the whole page instead of one click at a time.
+const pii = reactive<Record<number, { phone: string; email: string }>>({})
 
 const query = reactive({
   q: '',
@@ -62,11 +68,27 @@ async function load() {
     })
     rows.value = data
     total.value = meta.total ?? data.length
+    void revealPage(data)
   } catch (e) {
     if (e instanceof ApiError) ElMessage.error(e.message)
   } finally {
     loading.value = false
   }
+}
+
+async function revealPage(pageRows: UserRow[]) {
+  if (!auth.can('users.view_pii')) return
+
+  await Promise.all(
+    pageRows.map(async (row) => {
+      try {
+        const { data } = await api.get<{ phone: string; email: string }>(`/admin/users/${row.id}/pii`)
+        pii[row.id] = data
+      } catch {
+        // Leave that row masked rather than fail the whole page over one lookup.
+      }
+    }),
+  )
 }
 
 function open(row: UserRow) {
@@ -109,7 +131,7 @@ function relative(iso: string | null): string {
   <PageHead
     eyebrow="Platform"
     title="Users"
-    lede="Everyone with a Guftagu account. Phone and email are masked here — revealing one is a separate, recorded action."
+    lede="Everyone with a Guftagu account."
   />
 
   <div class="px-5 py-5 md:px-7">
@@ -159,8 +181,8 @@ function relative(iso: string | null): string {
 
         <el-table-column label="Contact" min-width="180">
           <template #default="{ row }: { row: UserRow }">
-            <div class="key">{{ row.phone_masked ?? '—' }}</div>
-            <div class="key truncate text-[var(--color-legend)]">{{ row.email_masked ?? '' }}</div>
+            <div class="key">{{ pii[row.id]?.phone ?? row.phone_masked ?? '—' }}</div>
+            <div class="key truncate text-[var(--color-legend)]">{{ pii[row.id]?.email ?? row.email_masked ?? '' }}</div>
           </template>
         </el-table-column>
 

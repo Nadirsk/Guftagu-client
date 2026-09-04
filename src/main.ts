@@ -7,6 +7,7 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 import '@/assets/styles/main.css'
 
 import App from './App.vue'
+import { installErrorReporter } from '@/lib/errorReporter'
 import { installPermissions } from '@/lib/permissions'
 import router from '@/router'
 
@@ -14,6 +15,7 @@ const app = createApp(App)
 
 app.use(createPinia())
 installPermissions(app)
+installErrorReporter(app)
 app.use(router)
 app.use(ElementPlus)
 

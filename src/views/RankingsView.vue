@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import EmptyState from '@/components/EmptyState.vue'
@@ -106,6 +106,84 @@ async function payRewards(periodStart: string) {
     if (e instanceof ApiError) ElMessage.error(e.message)
   } finally {
     busy.value = false
+  }
+}
+
+const rewardDialog = ref(false)
+const editingRewardId = ref<number | null>(null)
+const rewardForm = reactive({
+  rank_from: 1,
+  rank_to: 1,
+  reward_type: 'coins',
+  reward_value: 1000,
+})
+const rewardError = ref('')
+
+function openRewardDialog() {
+  editingRewardId.value = null
+  Object.assign(rewardForm, { rank_from: 1, rank_to: 1, reward_type: 'coins', reward_value: 1000 })
+  rewardError.value = ''
+  rewardDialog.value = true
+}
+
+function openEditRewardDialog(reward: (typeof rewards.value)[number]) {
+  editingRewardId.value = reward.id
+  Object.assign(rewardForm, {
+    rank_from: reward.rank_from,
+    rank_to: reward.rank_to,
+    reward_type: reward.reward_type,
+    reward_value: reward.reward_value,
+  })
+  rewardError.value = ''
+  rewardDialog.value = true
+}
+
+async function saveReward() {
+  if (!selected.value) return
+
+  rewardError.value = ''
+  busy.value = true
+  try {
+    if (editingRewardId.value === null) {
+      await api.post(`/admin/ranking-rules/${selected.value.id}/rewards`, { ...rewardForm })
+      ElMessage.success('Reward band added')
+    } else {
+      await api.patch(`/admin/ranking-rules/${selected.value.id}/rewards/${editingRewardId.value}`, { ...rewardForm })
+      ElMessage.success('Reward band updated')
+    }
+    rewardDialog.value = false
+    await loadRule(selected.value)
+  } catch (e) {
+    if (e instanceof ApiError) {
+      const clash = e.details?.overlapping as { rank_from: number; rank_to: number } | undefined
+      rewardError.value = clash
+        ? `Ranks ${clash.rank_from}–${clash.rank_to} are already covered by another band.`
+        : e.message
+    }
+  } finally {
+    busy.value = false
+  }
+}
+
+async function removeReward(id: number) {
+  if (!selected.value) return
+
+  try {
+    await ElMessageBox.confirm('Remove this reward band?', 'Remove band', {
+      confirmButtonText: 'Remove',
+      cancelButtonText: 'Cancel',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+
+  try {
+    await api.del(`/admin/ranking-rules/${selected.value.id}/rewards/${id}`)
+    ElMessage.success('Reward band removed')
+    await loadRule(selected.value)
+  } catch (e) {
+    if (e instanceof ApiError) ElMessage.error(e.message)
   }
 }
 
@@ -223,8 +301,15 @@ const belowThresholdNote = computed(() =>
         <div class="grid gap-4 md:grid-cols-2">
           <!-- Rewards -->
           <section class="panel">
-            <div class="border-b border-[var(--color-edge)] px-4 py-2.5">
+            <div class="flex items-center justify-between border-b border-[var(--color-edge)] px-4 py-2.5">
               <div class="eyebrow">Reward bands</div>
+              <el-button
+                v-permission="'rankings.rules_manage'"
+                size="small"
+                @click="openRewardDialog"
+              >
+                Add
+              </el-button>
             </div>
             <p v-if="!rewards.length" class="px-4 py-6 text-center text-[13px] text-[var(--color-legend)]">
               No bands — nothing would be paid for this board.
@@ -233,13 +318,17 @@ const belowThresholdNote = computed(() =>
               <li
                 v-for="reward in rewards"
                 :key="reward.id"
-                class="flex items-baseline justify-between px-4 py-2.5"
+                class="flex items-baseline justify-between gap-2 px-4 py-2.5"
               >
                 <span class="key">
                   {{ reward.rank_from === reward.rank_to ? `#${reward.rank_from}` : `#${reward.rank_from}–${reward.rank_to}` }}
                 </span>
                 <span class="key font-bold">
                   {{ reward.reward_value.toLocaleString() }} {{ reward.reward_type }}
+                </span>
+                <span v-permission="'rankings.rules_manage'" class="flex shrink-0 gap-1">
+                  <el-button size="small" text @click="openEditRewardDialog(reward)">Edit</el-button>
+                  <el-button size="small" text type="danger" @click="removeReward(reward.id)">Remove</el-button>
                 </span>
               </li>
             </ul>
@@ -284,4 +373,40 @@ const belowThresholdNote = computed(() =>
       </div>
     </div>
   </div>
+
+  <el-dialog v-model="rewardDialog" :title="editingRewardId === null ? 'Add a reward band' : 'Edit reward band'" width="400">
+    <div class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="eyebrow mb-1 block">From rank</label>
+          <el-input-number v-model="rewardForm.rank_from" :min="1" class="w-full" />
+        </div>
+        <div>
+          <label class="eyebrow mb-1 block">To rank</label>
+          <el-input-number v-model="rewardForm.rank_to" :min="1" class="w-full" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="eyebrow mb-1 block">Reward</label>
+          <el-select v-model="rewardForm.reward_type" class="w-full">
+            <el-option label="Coins" value="coins" />
+            <el-option label="Diamonds" value="diamonds" />
+          </el-select>
+        </div>
+        <div>
+          <label class="eyebrow mb-1 block">Amount</label>
+          <el-input-number v-model="rewardForm.reward_value" :min="1" :step="500" class="w-full" />
+        </div>
+      </div>
+
+      <p v-if="rewardError" class="text-[12px] text-[var(--color-cut)]">{{ rewardError }}</p>
+    </div>
+
+    <template #footer>
+      <el-button @click="rewardDialog = false">Cancel</el-button>
+      <el-button type="primary" :loading="busy" @click="saveReward">{{ editingRewardId === null ? 'Add band' : 'Save' }}</el-button>
+    </template>
+  </el-dialog>
 </template>

@@ -116,12 +116,13 @@ function waiting(iso: string | null): string {
   return `${Math.floor(hours / 24)}d`
 }
 
-const statusTone: Record<WithdrawalStatus, '' | 'success' | 'warning' | 'danger' | 'info'> = {
+// 'processing' deliberately has no entry — ElTag only accepts primary/success/info/
+// warning/danger, not '', so its plain (typeless) look comes from omitting the prop.
+const statusTone: Partial<Record<WithdrawalStatus, 'success' | 'warning' | 'danger' | 'info'>> = {
   pending: 'warning',
   pending_super_approval: 'danger',
   approved: 'success',
   rejected: 'info',
-  processing: '',
   paid: 'success',
   failed: 'danger',
   reverted: 'info',
@@ -223,7 +224,7 @@ const isSuperAdmin = computed(() => auth.isSuperAdmin)
 
         <el-table-column label="Status" width="180">
           <template #default="{ row }: { row: WithdrawalRow }">
-            <el-tag :type="statusTone[row.status]" size="small">
+            <el-tag :type="statusTone[row.status] ?? undefined" size="small">
               {{ row.status.replace(/_/g, ' ') }}
             </el-tag>
             <div v-if="row.reviewed_by" class="eyebrow mt-0.5">by {{ row.reviewed_by }}</div>
