@@ -55,6 +55,8 @@ export function installPermissions(app: App) {
 export interface NavItem {
   label: string
   to: string
+  /** Name of an @element-plus/icons-vue component, resolved by SideRail. */
+  icon: string
   /** Shown only when the caller holds at least one of these. Empty means always. */
   anyOf: string[]
   /** Marks a section that exists in the spec but has no backend yet. */
@@ -70,6 +72,8 @@ export interface NavItem {
 
 export interface NavSection {
   title: string
+  /** Name of an @element-plus/icons-vue component, used on the group header. */
+  icon: string
   items: NavItem[]
 }
 
@@ -84,68 +88,82 @@ export interface NavSection {
 export const NAV: NavSection[] = [
   {
     title: 'Console',
-    items: [{ label: 'Overview', to: '/', anyOf: [] }],
+    icon: 'Odometer',
+    items: [{ label: 'Overview', to: '/', icon: 'Odometer', anyOf: [] }],
   },
   {
     title: 'Access',
+    icon: 'Lock',
     items: [
-      { label: 'Panel users', to: '/access/admins', anyOf: ['access.admin_manage'] },
-      { label: 'Roles', to: '/access/roles', anyOf: ['access.role_manage'], requireRole: 'it_admin' },
-      { label: 'Permissions', to: '/access/permissions', anyOf: ['access.permission_grant'] },
-      { label: 'Audit trail', to: '/audit', anyOf: ['access.audit_view'] },
+      { label: 'Panel users', to: '/access/admins', icon: 'User', anyOf: ['access.admin_manage'] },
+      {
+        label: 'Roles',
+        to: '/access/roles',
+        icon: 'UserFilled',
+        anyOf: ['access.role_manage'],
+        requireRole: 'it_admin',
+      },
+      { label: 'Permissions', to: '/access/permissions', icon: 'Key', anyOf: ['access.permission_grant'] },
+      { label: 'Audit trail', to: '/audit', icon: 'Tickets', anyOf: ['access.audit_view'] },
     ],
   },
   {
     title: 'Platform',
+    icon: 'Grid',
     items: [
-      { label: 'Live rooms', to: '/rooms', anyOf: ['rooms.view'] },
-      { label: 'Room catalogue', to: '/room-catalogue', anyOf: ['rooms.view'] },
-      { label: 'Users', to: '/users', anyOf: ['users.view'] },
-      { label: 'Gifts', to: '/gifts', anyOf: ['gifts.view'] },
-      { label: 'Store', to: '/store', anyOf: ['vip.view'] },
-      { label: 'VIP & cosmetics', to: '/vip', anyOf: ['vip.view'] },
-      { label: 'Levels', to: '/levels', anyOf: ['levels.view'] },
-      { label: 'Security', to: '/settings/security', anyOf: ['settings.manage'] },
+      { label: 'Live rooms', to: '/rooms', icon: 'Mic', anyOf: ['rooms.view'] },
+      { label: 'Room catalogue', to: '/room-catalogue', icon: 'Menu', anyOf: ['rooms.view'] },
+      { label: 'Users', to: '/users', icon: 'User', anyOf: ['users.view'] },
+      { label: 'Gifts', to: '/gifts', icon: 'Present', anyOf: ['gifts.view'] },
+      { label: 'Store', to: '/store', icon: 'Shop', anyOf: ['vip.view'] },
+      { label: 'VIP & cosmetics', to: '/vip', icon: 'Star', anyOf: ['vip.view'] },
+      { label: 'Levels', to: '/levels', icon: 'TrendCharts', anyOf: ['levels.view'] },
+      { label: 'Security', to: '/settings/security', icon: 'Lock', anyOf: ['settings.manage'] },
     ],
   },
   {
     title: 'Engagement',
+    icon: 'Trophy',
     items: [
-      { label: 'Events', to: '/events', anyOf: ['events.view'] },
-      { label: 'Rankings', to: '/rankings', anyOf: ['rankings.view'] },
+      { label: 'Events', to: '/events', icon: 'Calendar', anyOf: ['events.view'] },
+      { label: 'Rankings', to: '/rankings', icon: 'Trophy', anyOf: ['rankings.view'] },
     ],
   },
   {
     title: 'Partners',
+    icon: 'OfficeBuilding',
     items: [
-      { label: 'Agencies', to: '/agencies', anyOf: ['agency.view'] },
-      { label: 'Hosts', to: '/hosts', anyOf: ['hosts.view'] },
-      { label: 'Gift Targets', to: '/gift-targets', anyOf: ['hosts.gift_target_manage'] },
+      { label: 'Agencies', to: '/agencies', icon: 'OfficeBuilding', anyOf: ['agency.view'] },
+      { label: 'Hosts', to: '/hosts', icon: 'Microphone', anyOf: ['hosts.view'] },
+      { label: 'Gift Targets', to: '/gift-targets', icon: 'Aim', anyOf: ['hosts.gift_target_manage'] },
     ],
   },
   {
     title: 'Money',
+    icon: 'Wallet',
     items: [
-      { label: 'Payouts', to: '/payouts', anyOf: ['payouts.view'] },
-      { label: 'Settlements', to: '/settlements', anyOf: ['agency.view'] },
-      { label: 'Rates & commission', to: '/economy', anyOf: ['economy.ledger_view'] },
-      { label: 'Report centre', to: '/reports', anyOf: ['reports_export.users'] },
+      { label: 'Payouts', to: '/payouts', icon: 'Wallet', anyOf: ['payouts.view'] },
+      { label: 'Settlements', to: '/settlements', icon: 'Money', anyOf: ['agency.view'] },
+      { label: 'Rates & commission', to: '/economy', icon: 'Coin', anyOf: ['economy.ledger_view'] },
+      { label: 'Report centre', to: '/reports', icon: 'DataAnalysis', anyOf: ['reports_export.users'] },
     ],
   },
   {
     title: 'Content',
+    icon: 'Postcard',
     items: [
-      { label: 'App content', to: '/content', anyOf: ['cms.banner_manage'] },
-      { label: 'Campaigns', to: '/campaigns', anyOf: ['cms.announcement_manage'] },
+      { label: 'App content', to: '/content', icon: 'Postcard', anyOf: ['cms.banner_manage'] },
+      { label: 'Campaigns', to: '/campaigns', icon: 'Promotion', anyOf: ['cms.announcement_manage'] },
     ],
   },
   {
     title: 'Safety',
+    icon: 'WarnTriangleFilled',
     items: [
-      { label: 'Support inbox', to: '/support', anyOf: ['support.view'] },
-      { label: 'Reports queue', to: '/reports', anyOf: ['reports.view'] },
-      { label: 'Content filter', to: '/moderation/words', anyOf: ['moderation.bannedwords_manage'] },
-      { label: 'Moderator activity', to: '/moderation/activity', anyOf: ['moderation.logs_view'] },
+      { label: 'Support inbox', to: '/support', icon: 'Service', anyOf: ['support.view'] },
+      { label: 'Reports queue', to: '/reports', icon: 'WarnTriangleFilled', anyOf: ['reports.view'] },
+      { label: 'Content filter', to: '/moderation/words', icon: 'Filter', anyOf: ['moderation.bannedwords_manage'] },
+      { label: 'Moderator activity', to: '/moderation/activity', icon: 'View', anyOf: ['moderation.logs_view'] },
     ],
   },
   {
@@ -153,8 +171,15 @@ export const NAV: NavSection[] = [
     // `requireRole` keeps this off Super Admin too — the backend route enforces the same
     // restriction (role:it_admin), so this only hides a link that would otherwise 403.
     title: 'IT Admin',
+    icon: 'Monitor',
     items: [
-      { label: 'System logs', to: '/system/logs', anyOf: ['system.logs_view'], requireRole: 'it_admin' },
+      {
+        label: 'System logs',
+        to: '/system/logs',
+        icon: 'Monitor',
+        anyOf: ['system.logs_view'],
+        requireRole: 'it_admin',
+      },
     ],
   },
 ]

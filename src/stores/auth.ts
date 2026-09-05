@@ -186,6 +186,9 @@ export const useAuthStore = defineStore('auth', () => {
   async function updateProfile(payload: {
     name?: string
     phone?: string | null
+    // Backend accepts this only from super_admin/admin roles — enforced server-side, not
+    // just hidden in the form (see AdminAuthController::updateProfile).
+    email?: string
   }): Promise<void> {
     const { data } = await api.patch<AdminProfile>('/admin/auth/profile', payload)
     admin.value = data

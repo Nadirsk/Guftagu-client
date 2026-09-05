@@ -397,7 +397,7 @@ async function warnMember(member: { user_id: number; display_name: string | null
                  anyone) is sitting there. The corner star underneath is the toggle. -->
             <span
               v-if="seat.is_vip"
-              class="absolute top-0.5 left-0.5 rounded-sm bg-[var(--color-signal)] px-1 text-[9px] font-bold leading-tight tracking-wide text-[var(--color-recess)]"
+              class="absolute top-0.5 left-0.5 rounded-sm bg-[var(--color-signal)] px-1 text-[9px] font-bold leading-tight tracking-wide text-[var(--color-ink)]"
             >
               VIP
             </span>

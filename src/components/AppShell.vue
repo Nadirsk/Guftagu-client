@@ -5,10 +5,12 @@ import { RouterLink, RouterView, useRouter } from 'vue-router'
 
 import SideRail from '@/components/SideRail.vue'
 import { useCriticalAlerts } from '@/composables/useCriticalAlerts'
+import { useTheme } from '@/composables/useTheme'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const router = useRouter()
+const { isDark, toggleTheme } = useTheme()
 
 // C.5a — critical-report alerts, polled every 5 seconds for as long as the panel is open,
 // regardless of which screen is on view.
@@ -83,13 +85,32 @@ async function signOut() {
           idle {{ auth.idleTimeoutMinutes }}m
         </div>
 
+        <button
+          type="button"
+          class="flex h-7 w-7 shrink-0 items-center justify-center text-[var(--color-legend)] transition-colors hover:text-[var(--color-paper)]"
+          :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+          :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+          @click="toggleTheme"
+        >
+          <svg v-if="isDark" viewBox="0 0 16 16" class="h-4 w-4" fill="currentColor" aria-hidden="true">
+            <path
+              d="M8 1.5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 1.5Zm0 11a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 12.5ZM2.5 8a.75.75 0 0 1-.75.75h-1a.75.75 0 0 1 0-1.5h1A.75.75 0 0 1 2.5 8Zm13 0a.75.75 0 0 1-.75.75h-1a.75.75 0 0 1 0-1.5h1a.75.75 0 0 1 .75.75ZM4.34 4.34a.75.75 0 0 1 1.06 0l.71.7a.75.75 0 1 1-1.06 1.07l-.71-.71a.75.75 0 0 1 0-1.06Zm7.85 7.85a.75.75 0 0 1 1.06 0l.71.7a.75.75 0 1 1-1.06 1.06l-.71-.7a.75.75 0 0 1 0-1.06Zm.71-7.85a.75.75 0 0 1 0 1.06l-.71.7a.75.75 0 1 1-1.06-1.06l.71-.7a.75.75 0 0 1 1.06 0Zm-7.85 7.85a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 0 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0ZM8 4.5A3.5 3.5 0 1 1 4.5 8 3.5 3.5 0 0 1 8 4.5Z"
+            />
+          </svg>
+          <svg v-else viewBox="0 0 16 16" class="h-4 w-4" fill="currentColor" aria-hidden="true">
+            <path
+              d="M6.5 1.5a.5.5 0 0 1 .53.62A5.5 5.5 0 0 0 14.38 9.47a.5.5 0 0 1 .78.55A7 7 0 1 1 6.05 2.03a.5.5 0 0 1 .45-.53Z"
+            />
+          </svg>
+        </button>
+
         <RouterLink
           to="/account"
           class="flex items-center gap-2 border border-[var(--color-edge)] px-2 py-1 transition-colors hover:border-[var(--color-edge-bright)]"
           style="border-radius: 3px"
         >
           <span
-            class="flex h-6 w-6 items-center justify-center bg-[var(--color-signal)] text-[11px] font-bold text-[var(--color-recess)]"
+            class="flex h-6 w-6 items-center justify-center bg-[var(--color-signal)] text-[11px] font-bold text-[var(--color-ink)]"
             style="border-radius: 2px"
             aria-hidden="true"
           >

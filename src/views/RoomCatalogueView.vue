@@ -623,7 +623,7 @@ async function removeTemplate(row: RoomSeatTemplateRow) {
             class="flex h-7 items-center justify-center border text-[12px] transition-colors"
             :class="
               templateForm.vip_positions.includes(position)
-                ? 'border-[var(--color-signal)] bg-[var(--color-signal)] text-[var(--color-recess)]'
+                ? 'border-[var(--color-signal)] bg-[var(--color-signal)] text-[var(--color-ink)]'
                 : 'border-[var(--color-edge-bright)] hover:border-[var(--color-legend)]'
             "
             style="border-radius: 3px"

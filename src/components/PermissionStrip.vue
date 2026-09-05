@@ -114,7 +114,7 @@ function toggle() {
           viewBox="0 0 10 10"
           class="h-2.5 w-2.5"
           fill="none"
-          stroke="var(--color-recess)"
+          stroke="var(--color-ink)"
           stroke-width="2"
         >
           <path d="M1.5 5.2 4 7.5 8.5 2.5" stroke-linecap="round" stroke-linejoin="round" />

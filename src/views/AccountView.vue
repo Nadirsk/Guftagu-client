@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import PageHead from '@/components/PageHead.vue'
@@ -11,9 +11,15 @@ import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
 const router = useRouter()
 
+// Only Super Admin and Admin log in with an address they might need to rotate themselves —
+// Manager/Moderator accounts are provisioned by an admin. Enforced server-side too, this
+// just keeps the field off a form that would 403 anyway.
+const mayEditEmail = computed(() => auth.roleKey === 'super_admin' || auth.roleKey === 'admin')
+
 const profile = reactive({
   name: auth.admin?.name ?? '',
   phone: auth.admin?.phone ?? '',
+  email: auth.admin?.email ?? '',
 })
 const savingProfile = ref(false)
 const profileErrors = ref<Record<string, string>>({})
@@ -30,7 +36,11 @@ async function saveProfile() {
   savingProfile.value = true
   profileErrors.value = {}
   try {
-    await auth.updateProfile({ name: profile.name, phone: profile.phone || null })
+    await auth.updateProfile({
+      name: profile.name,
+      phone: profile.phone || null,
+      ...(mayEditEmail.value ? { email: profile.email } : {}),
+    })
     ElMessage.success('Profile updated')
   } catch (e) {
     if (e instanceof ApiError) {
@@ -97,6 +107,14 @@ async function signOutEverywhere() {
           <el-input id="phone" v-model="profile.phone" maxlength="20" placeholder="+91…" />
           <p v-if="profileErrors.phone" class="mt-1 text-[12px] text-[var(--color-cut)]">
             {{ profileErrors.phone }}
+          </p>
+        </div>
+
+        <div v-if="mayEditEmail">
+          <label class="eyebrow mb-1 block" for="email">Email</label>
+          <el-input id="email" v-model="profile.email" type="email" maxlength="191" />
+          <p v-if="profileErrors.email" class="mt-1 text-[12px] text-[var(--color-cut)]">
+            {{ profileErrors.email }}
           </p>
         </div>
 

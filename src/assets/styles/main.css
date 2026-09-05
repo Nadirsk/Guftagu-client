@@ -9,10 +9,50 @@
   a channel pushed up, an explicit deny is a hard mute that overrides the mix, and a
   scoped grant is literally a broadcast shift (the spec's own example runs 18:00–02:00).
 
-  Dark is a working decision, not a fashion one: moderators watch live rooms through the
-  night shift the scope example describes.
+  The desk still ships two lightings: dark for the night shift the scope example
+  describes, light for daytime moderation. Same channel strips, same lamps — only the
+  ambient light around them changes. Light values live here as the default; `html.dark`
+  below swaps in the night-shift values.
 */
 @theme {
+  /* Panelwork — desaturated blue-slate paperwork, daylight lighting. Panel stays off-white
+     rather than stark #fff, and recess sits meaningfully darker than it, so cards read as
+     panels sitting on a desk rather than one flat white page. */
+  --color-recess: #d3dbe8;
+  --color-panel: #f8fafc;
+  --color-raised: #edf1f6;
+  --color-edge: #b9c5da;
+  --color-edge-bright: #8798b3;
+
+  /* Type */
+  --color-paper: #151c28;
+  --color-legend: #55637a;
+  --color-legend-dim: #8895aa;
+
+  /* Signal lamps. Amber is "live / granted" — the tally lamp on a desk.
+     Red is reserved strictly for deny and destructive, the way a cut button is.
+     Deepened from the dark-mode hues so they hold contrast on paper-white panels. */
+  --color-signal: #a15c0d;
+  --color-signal-dim: #f3ddb2;
+  --color-cut: #c22e26;
+  --color-cut-dim: #f7d6d3;
+  --color-ok: #147a63;
+  --color-ok-dim: #cdeee4;
+  --color-route: #3b5ec7;
+
+  /* Always-dark ink for text/icons laid directly on a signal-amber fill — decoupled
+     from --color-recess so it stays legible whichever way the desk is lit. */
+  --color-ink: #10151c;
+
+  --font-ui: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --radius-panel: 3px;
+}
+
+html.dark {
+  color-scheme: dark;
+
   /* Panelwork — desaturated blue-slate, never pure black. */
   --color-recess: #10151c;
   --color-panel: #1a2230;
@@ -34,11 +74,6 @@
   --color-ok: #3fbfa0;
   --color-ok-dim: #1e5a4c;
   --color-route: #6f8fd6;
-
-  --font-ui: 'Archivo', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
-  --radius-panel: 3px;
 }
 
 /* ---------------------------------------------------------------- base */
@@ -57,6 +92,9 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 /* Permission keys are dotted identifiers. Monospace is functionally right here —
@@ -70,7 +108,7 @@ body {
 /* Panel eyebrow: the little engraved label above a rack of controls. */
 .eyebrow {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -81,6 +119,13 @@ body {
   background: var(--color-panel);
   border: 1px solid var(--color-edge);
   border-radius: var(--radius-panel);
+  /* Daylight has no glow to lean on, so a soft drop shadow does the job the amber lamps
+     do at night: it tells a panel apart from the desk it sits on. */
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+
+html.dark .panel {
+  box-shadow: none;
 }
 
 /* A hatched safety cover, like the guard over a high-consequence switch.
@@ -127,31 +172,51 @@ body {
 }
 
 /* ------------------------------------------------- Element Plus, retuned
-   Element Plus ships its own dark palette. Left alone it reads as a generic
-   admin template, so its variables are rebound to the desk palette above. */
+   Element Plus ships its own light/dark palettes. Left alone it reads as a generic
+   admin template, so its variables are rebound to the desk palette above. Most bindings
+   just point at the --color-* tokens, which already flip with the theme; only the
+   color-mix tint direction and a couple of literals need a per-theme value. */
 
-html.dark {
-  color-scheme: dark;
-
+:root {
   --el-color-primary: var(--color-signal);
-  --el-color-primary-light-3: color-mix(in srgb, var(--color-signal) 70%, black);
-  --el-color-primary-light-5: color-mix(in srgb, var(--color-signal) 50%, black);
-  --el-color-primary-light-7: color-mix(in srgb, var(--color-signal) 30%, black);
-  --el-color-primary-light-8: color-mix(in srgb, var(--color-signal) 20%, black);
-  --el-color-primary-light-9: color-mix(in srgb, var(--color-signal) 12%, black);
-  --el-color-primary-dark-2: color-mix(in srgb, var(--color-signal) 85%, white);
+  --el-color-primary-light-3: color-mix(in srgb, var(--color-signal) 70%, white);
+  --el-color-primary-light-5: color-mix(in srgb, var(--color-signal) 50%, white);
+  --el-color-primary-light-7: color-mix(in srgb, var(--color-signal) 30%, white);
+  --el-color-primary-light-8: color-mix(in srgb, var(--color-signal) 20%, white);
+  --el-color-primary-light-9: color-mix(in srgb, var(--color-signal) 12%, white);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--color-signal) 85%, black);
 
   --el-color-danger: var(--color-cut);
+  --el-color-danger-light-3: color-mix(in srgb, var(--color-cut) 70%, white);
+  --el-color-danger-light-5: color-mix(in srgb, var(--color-cut) 50%, white);
+  --el-color-danger-light-7: color-mix(in srgb, var(--color-cut) 30%, white);
+  --el-color-danger-light-8: color-mix(in srgb, var(--color-cut) 20%, white);
+  --el-color-danger-light-9: color-mix(in srgb, var(--color-cut) 12%, white);
+  --el-color-danger-dark-2: color-mix(in srgb, var(--color-cut) 85%, black);
   --el-color-error: var(--color-cut);
+
   --el-color-success: var(--color-ok);
+  --el-color-success-light-3: color-mix(in srgb, var(--color-ok) 70%, white);
+  --el-color-success-light-5: color-mix(in srgb, var(--color-ok) 50%, white);
+  --el-color-success-light-7: color-mix(in srgb, var(--color-ok) 30%, white);
+  --el-color-success-light-8: color-mix(in srgb, var(--color-ok) 20%, white);
+  --el-color-success-light-9: color-mix(in srgb, var(--color-ok) 12%, white);
+  --el-color-success-dark-2: color-mix(in srgb, var(--color-ok) 85%, black);
+
   --el-color-warning: var(--color-signal);
+  --el-color-warning-light-3: var(--el-color-primary-light-3);
+  --el-color-warning-light-5: var(--el-color-primary-light-5);
+  --el-color-warning-light-7: var(--el-color-primary-light-7);
+  --el-color-warning-light-8: var(--el-color-primary-light-8);
+  --el-color-warning-light-9: var(--el-color-primary-light-9);
+  --el-color-warning-dark-2: var(--el-color-primary-dark-2);
 
   --el-bg-color: var(--color-panel);
   --el-bg-color-overlay: var(--color-raised);
   --el-bg-color-page: var(--color-recess);
 
   --el-text-color-primary: var(--color-paper);
-  --el-text-color-regular: #c3cddb;
+  --el-text-color-regular: #37455a;
   --el-text-color-secondary: var(--color-legend);
   --el-text-color-placeholder: var(--color-legend-dim);
 
@@ -171,32 +236,57 @@ html.dark {
   --el-font-size-base: 14px;
 }
 
-/* Amber on slate needs dark text to stay legible — Element Plus assumes white. */
-html.dark .el-button--primary {
-  --el-button-text-color: var(--color-recess);
-  --el-button-hover-text-color: var(--color-recess);
+html.dark {
+  --el-color-primary-light-3: color-mix(in srgb, var(--color-signal) 70%, black);
+  --el-color-primary-light-5: color-mix(in srgb, var(--color-signal) 50%, black);
+  --el-color-primary-light-7: color-mix(in srgb, var(--color-signal) 30%, black);
+  --el-color-primary-light-8: color-mix(in srgb, var(--color-signal) 20%, black);
+  --el-color-primary-light-9: color-mix(in srgb, var(--color-signal) 12%, black);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--color-signal) 85%, white);
+
+  --el-color-danger-light-3: color-mix(in srgb, var(--color-cut) 70%, black);
+  --el-color-danger-light-5: color-mix(in srgb, var(--color-cut) 50%, black);
+  --el-color-danger-light-7: color-mix(in srgb, var(--color-cut) 30%, black);
+  --el-color-danger-light-8: color-mix(in srgb, var(--color-cut) 20%, black);
+  --el-color-danger-light-9: color-mix(in srgb, var(--color-cut) 12%, black);
+  --el-color-danger-dark-2: color-mix(in srgb, var(--color-cut) 85%, white);
+
+  --el-color-success-light-3: color-mix(in srgb, var(--color-ok) 70%, black);
+  --el-color-success-light-5: color-mix(in srgb, var(--color-ok) 50%, black);
+  --el-color-success-light-7: color-mix(in srgb, var(--color-ok) 30%, black);
+  --el-color-success-light-8: color-mix(in srgb, var(--color-ok) 20%, black);
+  --el-color-success-light-9: color-mix(in srgb, var(--color-ok) 12%, black);
+  --el-color-success-dark-2: color-mix(in srgb, var(--color-ok) 85%, white);
+
+  --el-text-color-regular: #c3cddb;
+}
+
+/* Amber on slate needs dark ink to stay legible — Element Plus assumes white. */
+.el-button--primary {
+  --el-button-text-color: var(--color-ink);
+  --el-button-hover-text-color: var(--color-ink);
   font-weight: 600;
 }
 
-html.dark .el-table th.el-table__cell {
+.el-table th.el-table__cell {
   background: var(--color-raised);
   font-weight: 600;
 }
 
-html.dark .el-table tr {
+.el-table tr {
   background: var(--color-panel);
 }
 
-html.dark .el-dialog {
+.el-dialog {
   border: 1px solid var(--color-edge);
 }
 
-html.dark .el-dialog__title {
+.el-dialog__title {
   font-weight: 600;
 }
 
 /* Element Plus tags default to a washed pastel; make them read as machine labels. */
-html.dark .el-tag {
+.el-tag {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;

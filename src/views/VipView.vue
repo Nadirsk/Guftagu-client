@@ -221,7 +221,7 @@ function rupees(paise: number): string {
                       viewBox="0 0 10 10"
                       class="h-3 w-3"
                       fill="none"
-                      stroke="var(--color-recess)"
+                      stroke="var(--color-ink)"
                       stroke-width="2"
                       aria-hidden="true"
                     >
