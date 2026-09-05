@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Environment. `.env.example` is committed and is the documentation; the real files are
+# not. `*.local` above does not cover a plain `.env`, which is exactly the file someone
+# eventually puts a staging host or a key into.
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

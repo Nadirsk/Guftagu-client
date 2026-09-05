@@ -68,8 +68,20 @@ export const tokenStore = {
   },
 }
 
+/**
+ * Relative by default, so the browser stays on one origin — the Vite proxy in dev, one
+ * nginx vhost in production. Neither needs CORS.
+ *
+ * The fallback matters: a checkout with no `.env` must still work. Config that is only
+ * usually present produces the worst kind of bug report.
+ */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+
+/** Only used to name the right process in a dev-time gateway error. */
+const API_TARGET = import.meta.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8001'
+
 export const http: AxiosInstance = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_BASE_URL,
   headers: { Accept: 'application/json' },
   timeout: 20_000,
 })
@@ -120,12 +132,13 @@ http.interceptors.response.use(
     const { status, data } = error.response
 
     // The dev-server proxy answers with a gateway error when it is up but the API behind
-    // it is not — that is the case where naming port 8001 is actually correct.
+    // it is not — that is the case where naming the actual target is useful rather than
+    // noise, so the message quotes whatever the proxy was configured to reach.
     if ((status === 502 || status === 504) && !data?.error) {
       return Promise.reject(
         new ApiError(
           'SERVER_ERROR',
-          'The API is not responding. Check that it is running on port 8001.',
+          `The API is not responding. Check that it is running on ${API_TARGET}.`,
           null,
           status,
         ),
