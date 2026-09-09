@@ -159,7 +159,7 @@ const router = createRouter({
           meta: { permission: 'cms.announcement_manage', title: 'Campaigns' },
         },
         {
-          path: 'reports',
+          path: 'report-centre',
           name: 'report-centre',
           component: () => import('@/views/ReportCentreView.vue'),
           meta: { permission: 'reports_export.users', title: 'Report centre' },

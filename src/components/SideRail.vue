@@ -163,12 +163,12 @@ function toggle(title: string) {
     :class="open ? 'translate-x-0' : '-translate-x-full'"
   >
     <div class="flex h-14 items-center gap-2.5 border-b border-[var(--color-edge)] px-4">
-      <!-- Three rising bars: a level meter. The product is voice; the mark says so. -->
-      <svg viewBox="0 0 16 16" class="h-4 w-4 shrink-0" aria-hidden="true">
-        <rect x="1" y="9" width="3" height="6" fill="var(--color-signal-dim)" />
-        <rect x="6.5" y="5" width="3" height="10" fill="var(--color-signal)" />
-        <rect x="12" y="2" width="3" height="13" fill="var(--color-signal-dim)" />
-      </svg>
+      <span
+        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--color-signal)] font-(--font-display) text-[14px] font-semibold text-[var(--color-ink)]"
+        aria-hidden="true"
+      >
+        G
+      </span>
       <div class="min-w-0">
         <div class="truncate text-[15px] leading-tight font-semibold tracking-tight">Guftagu</div>
         <div class="eyebrow leading-tight">Console</div>
@@ -181,7 +181,7 @@ function toggle(title: string) {
         <RouterLink
           v-if="section.items.length === 1 && !section.items[0].pending"
           :to="section.items[0].to"
-          class="flex h-11 items-center gap-2 rounded-[3px] px-3 text-[15px] transition-colors"
+          class="flex h-11 items-center gap-2 rounded-md px-3 text-[15px] transition-colors"
           :class="
             route.path === section.items[0].to
               ? 'bg-[var(--color-raised)] font-medium text-[var(--color-paper)]'
@@ -197,7 +197,7 @@ function toggle(title: string) {
         <template v-else>
           <button
             type="button"
-            class="flex h-11 w-full items-center gap-2 rounded-[3px] px-3 text-[15px] text-[var(--color-legend)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-paper)]"
+            class="flex h-11 w-full items-center gap-2 rounded-md px-3 text-[15px] text-[var(--color-legend)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-paper)]"
             :aria-expanded="openSections.has(section.title)"
             @click="toggle(section.title)"
           >

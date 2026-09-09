@@ -10,6 +10,7 @@ export interface Meta {
   per_page?: number
   total?: number
   last_page?: number
+  unread_count?: number
 }
 
 export interface Envelope<T> {

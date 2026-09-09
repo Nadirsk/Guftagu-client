@@ -191,7 +191,7 @@ async function evaluateAllGiftTargets() {
 /** Amber under target, teal once met — the same signal colour as everywhere else. */
 function barColour(pct: number | null): string {
   if (pct === null) return 'var(--color-edge-bright)'
-  return pct >= 100 ? '#00A47C' : '#BF831F'
+  return pct >= 100 ? 'var(--color-ok)' : 'var(--color-signal)'
 }
 </script>
 

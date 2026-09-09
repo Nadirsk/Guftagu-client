@@ -227,7 +227,7 @@ const canReply = computed(() => detail.value?.ticket.is_open ?? false)
     <div v-if="summary" class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       <div class="panel px-3 py-2.5">
         <div class="eyebrow">open</div>
-        <div class="text-[20px] font-semibold">{{ summary.open }}</div>
+        <div class="stat-figure text-[20px]">{{ summary.open }}</div>
       </div>
       <button
         type="button"
@@ -236,7 +236,7 @@ const canReply = computed(() => detail.value?.ticket.is_open ?? false)
         @click="filters.sla = filters.sla === 'unanswered' ? '' : 'unanswered'"
       >
         <div class="eyebrow">unanswered</div>
-        <div class="text-[20px] font-semibold">{{ summary.unanswered }}</div>
+        <div class="stat-figure text-[20px]">{{ summary.unanswered }}</div>
       </button>
       <button
         type="button"
@@ -246,7 +246,7 @@ const canReply = computed(() => detail.value?.ticket.is_open ?? false)
       >
         <div class="eyebrow">late</div>
         <div
-          class="text-[20px] font-semibold"
+          class="stat-figure text-[20px]"
           :class="summary.breaching > 0 ? 'text-[var(--color-signal)]' : ''"
         >
           {{ summary.breaching }}
@@ -254,11 +254,11 @@ const canReply = computed(() => detail.value?.ticket.is_open ?? false)
       </button>
       <div class="panel px-3 py-2.5">
         <div class="eyebrow">urgent</div>
-        <div class="text-[20px] font-semibold">{{ summary.urgent }}</div>
+        <div class="stat-figure text-[20px]">{{ summary.urgent }}</div>
       </div>
       <div class="panel px-3 py-2.5">
         <div class="eyebrow">unassigned</div>
-        <div class="text-[20px] font-semibold">{{ summary.unassigned }}</div>
+        <div class="stat-figure text-[20px]">{{ summary.unassigned }}</div>
       </div>
       <button
         type="button"
@@ -267,7 +267,7 @@ const canReply = computed(() => detail.value?.ticket.is_open ?? false)
         @click="filters.sla = filters.sla === 'escalated' ? '' : 'escalated'"
       >
         <div class="eyebrow">escalated</div>
-        <div class="text-[20px] font-semibold">{{ summary.escalated }}</div>
+        <div class="stat-figure text-[20px]">{{ summary.escalated }}</div>
       </button>
     </div>
 
@@ -387,23 +387,54 @@ const canReply = computed(() => detail.value?.ticket.is_open ?? false)
       <!-- Thread -->
       <section class="panel">
         <div class="border-b border-[var(--color-edge)] px-4 py-2.5"><div class="eyebrow">Conversation</div></div>
-        <ul>
-          <li
-            v-for="m in detail.messages"
-            :key="m.id"
-            class="border-b border-[var(--color-edge)] px-4 py-3 last:border-b-0"
-            :class="m.is_internal ? 'bg-[var(--color-raised)]' : ''"
-          >
-            <div class="flex items-baseline gap-2">
-              <span class="eyebrow">
-                {{ m.sender_type === 'system' ? 'system' : (m.sender ?? m.sender_type) }}
+        <ul class="flex max-h-[440px] flex-col gap-2.5 overflow-y-auto p-4">
+          <li v-for="m in detail.messages" :key="m.id">
+            <!-- A system event is neither side of the chat, so it never gets a bubble. -->
+            <div v-if="m.sender_type === 'system'" class="flex justify-center">
+              <span class="eyebrow rounded-full bg-[var(--color-raised)] px-3 py-1">
+                {{ m.body }} · {{ m.created_at?.slice(0, 16).replace('T', ' ') }}
               </span>
-              <!-- Marked plainly. An internal note rendered like a reply is how a private
-                   remark ends up quoted back at the customer. -->
-              <el-tag v-if="m.is_internal" size="small" type="warning">internal note</el-tag>
-              <span class="eyebrow ml-auto">{{ m.created_at?.slice(0, 16).replace('T', ' ') }}</span>
             </div>
-            <p class="mt-1 text-[13px] whitespace-pre-line">{{ m.body }}</p>
+
+            <!-- Marked plainly and kept OUT of the bubble flow entirely. An internal note
+                 rendered like a reply is how a private remark ends up quoted back at the
+                 customer, so it renders as a full-width note, not a message from either side. -->
+            <div
+              v-else-if="m.is_internal"
+              class="rounded-lg border border-dashed border-[var(--color-signal)] bg-[var(--color-signal-dim)] px-3 py-2"
+            >
+              <div class="flex items-baseline gap-2">
+                <el-tag size="small" type="warning">internal note</el-tag>
+                <span class="eyebrow">{{ m.sender ?? 'admin' }}</span>
+                <span class="eyebrow ml-auto">{{ m.created_at?.slice(0, 16).replace('T', ' ') }}</span>
+              </div>
+              <p class="mt-1 text-[13px] whitespace-pre-line">{{ m.body }}</p>
+            </div>
+
+            <div v-else class="flex" :class="m.sender_type === 'admin' ? 'justify-end' : 'justify-start'">
+              <div
+                class="max-w-[75%] rounded-2xl px-3 py-2"
+                :class="m.sender_type === 'admin'
+                  ? 'rounded-br-sm bg-[var(--color-signal)] text-white'
+                  : 'rounded-bl-sm bg-[var(--color-raised)]'"
+              >
+                <div class="flex items-baseline gap-2">
+                  <span
+                    class="text-[11px] font-medium uppercase tracking-wide"
+                    :class="m.sender_type === 'admin' ? 'text-white/70' : 'text-[var(--color-legend)]'"
+                  >
+                    {{ m.sender ?? m.sender_type }}
+                  </span>
+                </div>
+                <p class="mt-0.5 text-[13px] whitespace-pre-line">{{ m.body }}</p>
+                <div
+                  class="mt-1 text-right text-[11px]"
+                  :class="m.sender_type === 'admin' ? 'text-white/60' : 'text-[var(--color-legend)]'"
+                >
+                  {{ m.created_at?.slice(0, 16).replace('T', ' ') }}
+                </div>
+              </div>
+            </div>
           </li>
         </ul>
       </section>

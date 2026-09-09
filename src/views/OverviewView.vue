@@ -5,9 +5,10 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import GroupedBars from '@/components/charts/GroupedBars.vue'
 import LineChart from '@/components/charts/LineChart.vue'
-import { REVENUE_SERIES, SERIES, rampStep } from '@/components/charts/palette'
+import { rampStep, seriesFor } from '@/components/charts/palette'
 import PageHead from '@/components/PageHead.vue'
 import ScopedOverview from '@/components/ScopedOverview.vue'
+import { useTheme } from '@/composables/useTheme'
 import { ApiError, api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 import type { ScopedKpis } from '@/types/api'
@@ -15,6 +16,8 @@ import type { ScopedKpis } from '@/types/api'
 /** Epic A.2 — GFT-019 (tiles + live counters), GFT-020 (revenue), GFT-021 (retention). */
 const auth = useAuthStore()
 const route = useRoute()
+const { isDark } = useTheme()
+const revenueSeries = computed(() => seriesFor(isDark.value))
 
 interface Kpis {
   users: { total: number; active: number; suspended: number; banned: number; new_today: number; new_7d: number }
@@ -111,11 +114,12 @@ async function changeRange() {
   await loadCharts()
 }
 
-async function requestExport() {
+async function requestExport(format: 'csv' | 'pdf') {
   exporting.value = true
   try {
     const { message } = await api.post('/admin/dashboard/export', {
       type: 'revenue',
+      format,
       from: fromDate(),
       to: today(),
     })
@@ -137,7 +141,7 @@ const signupPoints = computed(() =>
 const revenueBuckets = computed(() =>
   (revenue.value?.series ?? []).map((point) => ({
     label: String(point.label),
-    values: REVENUE_SERIES.map((s) => Number(point[s.key] ?? 0)),
+    values: revenueSeries.value.map((s) => Number(point[s.key] ?? 0)),
   })),
 )
 
@@ -188,9 +192,17 @@ function cohortLabel(iso: string): string {
         v-permission="'dashboard.export'"
         size="small"
         :loading="exporting"
-        @click="requestExport"
+        @click="requestExport('csv')"
       >
         Export CSV
+      </el-button>
+      <el-button
+        v-permission="'dashboard.export'"
+        size="small"
+        :loading="exporting"
+        @click="requestExport('pdf')"
+      >
+        Export PDF
       </el-button>
     </template>
   </PageHead>
@@ -222,7 +234,7 @@ function cohortLabel(iso: string): string {
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div class="panel px-4 py-3">
           <div class="eyebrow">Total users</div>
-          <div class="mt-1 text-[24px] leading-none font-semibold tabular-nums">
+          <div class="stat-figure mt-1 text-[28px] leading-none">
             {{ format(kpis?.users.total) }}
           </div>
           <div class="key mt-1.5 text-[var(--color-legend)]">
@@ -232,7 +244,7 @@ function cohortLabel(iso: string): string {
 
         <div class="panel px-4 py-3">
           <div class="eyebrow">Active today</div>
-          <div class="mt-1 text-[24px] leading-none font-semibold tabular-nums">
+          <div class="stat-figure mt-1 text-[28px] leading-none">
             {{ format(kpis?.engagement.active_today) }}
           </div>
           <div class="key mt-1.5 text-[var(--color-legend)]">
@@ -247,7 +259,7 @@ function cohortLabel(iso: string): string {
         >
           <div class="eyebrow">KYC waiting</div>
           <div
-            class="mt-1 text-[24px] leading-none font-semibold tabular-nums"
+            class="stat-figure mt-1 text-[28px] leading-none"
             :class="(kpis?.queues.kyc_pending ?? 0) > 0 ? 'text-[var(--color-signal)]' : ''"
           >
             {{ format(kpis?.queues.kyc_pending) }}
@@ -255,14 +267,17 @@ function cohortLabel(iso: string): string {
           <div class="key mt-1.5 text-[var(--color-legend)]">review queue →</div>
         </RouterLink>
 
-        <!-- Honest tile: not zero rooms, no rooms module. -->
-        <div class="panel px-4 py-3 opacity-70">
+        <RouterLink
+          v-permission="'rooms.view'"
+          to="/rooms"
+          class="panel block px-4 py-3 transition-colors hover:border-[var(--color-edge-bright)]"
+        >
           <div class="eyebrow">Live rooms</div>
-          <div class="mt-1 text-[24px] leading-none font-semibold text-[var(--color-legend-dim)]">
-            —
+          <div class="stat-figure mt-1 text-[28px] leading-none">
+            {{ format(kpis?.rooms.live) }}
           </div>
-          <div class="key mt-1.5 text-[var(--color-legend-dim)]">arrives with the rooms module</div>
-        </div>
+          <div class="key mt-1.5 text-[var(--color-legend)]">right now →</div>
+        </RouterLink>
       </div>
 
       <div class="mt-3 grid gap-3 sm:grid-cols-3">
@@ -289,7 +304,7 @@ function cohortLabel(iso: string): string {
           </div>
         </div>
         <div class="p-3">
-          <LineChart :points="signupPoints" :color="SERIES[0]" value-label="signups" />
+          <LineChart :points="signupPoints" :color="revenueSeries[0].color" value-label="signups" />
         </div>
       </section>
 
@@ -312,7 +327,7 @@ function cohortLabel(iso: string): string {
             it is "not built". Manual wallet adjustments are tracked separately below.
           </div>
 
-          <GroupedBars :buckets="revenueBuckets" :series="REVENUE_SERIES" unit="coins" />
+          <GroupedBars :buckets="revenueBuckets" :series="revenueSeries" unit="coins" />
 
           <div class="mt-3 grid gap-3 border-t border-[var(--color-edge)] pt-3 sm:grid-cols-3">
             <div>
@@ -380,7 +395,7 @@ function cohortLabel(iso: string): string {
                   >
                     <span
                       class="inline-block min-w-[3rem] px-2 py-0.5"
-                      :style="{ background: rampStep(cohort[horizon]), borderRadius: '2px' }"
+                      :style="{ background: rampStep(cohort[horizon], isDark), borderRadius: '4px' }"
                     >
                       {{ pct(cohort[horizon]) }}
                     </span>

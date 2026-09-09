@@ -7,11 +7,13 @@ import EmptyState from '@/components/EmptyState.vue'
 import PageHead from '@/components/PageHead.vue'
 import WalletAdjustDialog from '@/components/WalletAdjustDialog.vue'
 import { ApiError, api } from '@/lib/api'
+import { useAuthStore } from '@/stores/auth'
 import type { Currency, LedgerIntegrity, LedgerRow, LevelType, UserDetail, WealthCharmLevelRow } from '@/types/api'
 
 /** GFT-032 (detail tabs) and GFT-033 (KYC review). */
 const route = useRoute()
 const userId = Number(route.params.id)
+const auth = useAuthStore()
 
 const detail = ref<UserDetail | null>(null)
 const loading = ref(true)
@@ -99,6 +101,8 @@ const editForm = reactive({
   gender: '' as string | null,
   date_of_birth: '' as string | null,
   language: '' as string | null,
+  phone: '' as string,
+  email: '' as string | null,
 })
 
 function openEdit() {
@@ -110,13 +114,15 @@ function openEdit() {
   editForm.gender = profile?.gender ?? ''
   editForm.date_of_birth = profile?.date_of_birth ?? ''
   editForm.language = profile?.language ?? ''
+  editForm.phone = pii.value?.phone ?? ''
+  editForm.email = pii.value?.email ?? ''
   editOpen.value = true
 }
 
 async function saveEdit() {
   editSaving.value = true
   try {
-    await api.patch(`/admin/users/${userId}`, {
+    const payload: Record<string, unknown> = {
       display_name: editForm.display_name,
       bio: editForm.bio || null,
       country: editForm.country || null,
@@ -124,10 +130,18 @@ async function saveEdit() {
       gender: editForm.gender || null,
       date_of_birth: editForm.date_of_birth || null,
       language: editForm.language || null,
-    })
+    }
+    // Only Super Admin may move a user off their OTP-verified phone/email — everyone
+    // else gets `prohibited` back from the API, so this stays out of their payload.
+    if (auth.isSuperAdmin) {
+      if (editForm.phone) payload.phone = editForm.phone
+      payload.email = editForm.email || null
+    }
+    await api.patch(`/admin/users/${userId}`, payload)
     ElMessage.success('Profile updated')
     editOpen.value = false
     await load()
+    await revealPii()
   } catch (e) {
     if (e instanceof ApiError) ElMessage.error(e.message)
   } finally {
@@ -796,6 +810,28 @@ function when(iso: string | null): string {
 
   <el-dialog v-model="editOpen" title="Edit user details" width="460">
     <form class="space-y-3" @submit.prevent="saveEdit">
+      <div class="flex gap-2">
+        <div class="flex-1">
+          <label class="eyebrow mb-1 block" for="edit-phone">Phone</label>
+          <el-input v-if="auth.isSuperAdmin" id="edit-phone" v-model="editForm.phone" />
+          <div v-else class="key text-[14px]">{{ pii?.phone ?? user?.phone_masked ?? '—' }}</div>
+        </div>
+        <div class="flex-1">
+          <label class="eyebrow mb-1 block" for="edit-email">Email</label>
+          <el-input v-if="auth.isSuperAdmin" id="edit-email" v-model="editForm.email" />
+          <div v-else class="key text-[14px]">{{ pii?.email ?? user?.email_masked ?? '—' }}</div>
+        </div>
+      </div>
+      <p class="eyebrow leading-relaxed">
+        <template v-if="auth.isSuperAdmin">
+          Super Admin can change a user's phone/email directly — this bypasses their own
+          OTP flow, so double-check before saving
+        </template>
+        <template v-else>
+          phone and email are set during the user's own onboarding and can't be edited here
+        </template>
+      </p>
+
       <div>
         <label class="eyebrow mb-1 block" for="edit-name">Display name</label>
         <el-input id="edit-name" v-model="editForm.display_name" />

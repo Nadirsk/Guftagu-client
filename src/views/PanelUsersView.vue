@@ -136,6 +136,77 @@ async function setStatus(row: AdminProfile) {
 function openPermissions(row: AdminProfile) {
   void router.push({ name: 'admin-detail', params: { id: row.id } })
 }
+
+/** Mirrors AdminUserController::mayManage — who this signed-in admin may edit at all. */
+function canManage(row: AdminProfile): boolean {
+  if (auth.isSuperAdmin) return true
+  if (row.id === auth.admin?.id) return true
+  return auth.roleKey === 'admin' && (row.role?.key === 'manager' || row.role?.key === 'moderator')
+}
+
+const editing = ref<AdminProfile | null>(null)
+const editSaving = ref(false)
+const editForm = reactive({
+  name: '',
+  email: '',
+  phone: '',
+  role: 'moderator' as RoleKey,
+  mfa_enabled: false,
+  session_timeout_minutes: null as number | null,
+})
+const editErrors = ref<Record<string, string>>({})
+
+function openEdit(row: AdminProfile) {
+  editing.value = row
+  editErrors.value = {}
+  Object.assign(editForm, {
+    name: row.name,
+    email: row.email,
+    phone: row.phone ?? '',
+    role: row.role?.key ?? 'moderator',
+    mfa_enabled: row.mfa_enabled,
+    session_timeout_minutes: row.session_timeout_minutes ?? null,
+  })
+}
+
+/** The role select must still show the row's current role even if the actor could not
+ * have assigned it themselves (e.g. an Admin editing their own Admin-role row). */
+function editableRoles(row: AdminProfile | null): RoleKey[] {
+  const roles = new Set(assignableRoles.value)
+  if (row?.role?.key) roles.add(row.role.key)
+  return [...roles]
+}
+
+async function saveEdit() {
+  if (!editing.value) return
+  editSaving.value = true
+  editErrors.value = {}
+  try {
+    // Only send `role` when it actually changed — the backend runs the delegation-ladder
+    // check whenever the key is present at all, and self-edits (e.g. an Admin renaming
+    // themselves) must not trip that check just because the unchanged role was echoed back.
+    const roleChanged = editForm.role !== (editing.value.role?.key ?? null)
+
+    await api.patch<AdminProfile>(`/admin/admins/${editing.value.id}`, {
+      name: editForm.name,
+      email: editForm.email,
+      phone: editForm.phone || null,
+      ...(roleChanged ? { role: editForm.role } : {}),
+      mfa_enabled: editForm.mfa_enabled,
+      session_timeout_minutes: editForm.session_timeout_minutes,
+    })
+    ElMessage.success(`${editForm.name} updated`)
+    editing.value = null
+    await load()
+  } catch (e) {
+    if (e instanceof ApiError) {
+      editErrors.value = e.fieldErrors
+      if (!Object.keys(editErrors.value).length) ElMessage.error(e.message)
+    }
+  } finally {
+    editSaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -217,8 +288,9 @@ function openPermissions(row: AdminProfile) {
           </template>
         </el-table-column>
 
-        <el-table-column label="" width="200" align="right">
+        <el-table-column label="" width="280" align="right">
           <template #default="{ row }: { row: AdminProfile }">
+            <el-button v-if="canManage(row)" size="small" @click="openEdit(row)"> Edit </el-button>
             <el-button
               v-permission.disable="'access.permission_grant'"
               size="small"
@@ -308,6 +380,88 @@ function openPermissions(row: AdminProfile) {
         @click="create"
       >
         Create account
+      </el-button>
+    </template>
+  </el-dialog>
+
+  <!-- Edit -->
+  <el-dialog
+    :model-value="editing !== null"
+    title="Edit panel user"
+    width="440"
+    @update:model-value="(v: boolean) => !v && (editing = null)"
+  >
+    <form v-if="editing" class="space-y-3" @submit.prevent="saveEdit">
+      <div>
+        <label class="eyebrow mb-1 block" for="edit-name">Name</label>
+        <el-input id="edit-name" v-model="editForm.name" />
+        <p v-if="editErrors.name" class="mt-1 text-[12px] text-[var(--color-cut)]">
+          {{ editErrors.name }}
+        </p>
+      </div>
+
+      <div>
+        <label class="eyebrow mb-1 block" for="edit-email">Email</label>
+        <el-input id="edit-email" v-model="editForm.email" type="email" />
+        <p class="eyebrow mt-1">this is also their sign-in username</p>
+        <p v-if="editErrors.email" class="mt-1 text-[12px] text-[var(--color-cut)]">
+          {{ editErrors.email }}
+        </p>
+      </div>
+
+      <div>
+        <label class="eyebrow mb-1 block" for="edit-phone">Phone</label>
+        <el-input id="edit-phone" v-model="editForm.phone" />
+        <p v-if="editErrors.phone" class="mt-1 text-[12px] text-[var(--color-cut)]">
+          {{ editErrors.phone }}
+        </p>
+      </div>
+
+      <div>
+        <label class="eyebrow mb-1 block">Role</label>
+        <el-select v-model="editForm.role" class="w-full">
+          <el-option
+            v-for="role in editableRoles(editing)"
+            :key="role"
+            :label="role.replace('_', ' ')"
+            :value="role"
+          />
+        </el-select>
+        <p v-if="editErrors.role" class="mt-1 text-[12px] text-[var(--color-cut)]">
+          {{ editErrors.role }}
+        </p>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <label class="eyebrow" for="edit-mfa">Require 2FA</label>
+        <el-switch id="edit-mfa" v-model="editForm.mfa_enabled" />
+      </div>
+
+      <div>
+        <label class="eyebrow mb-1 block" for="edit-timeout">Session timeout (minutes)</label>
+        <el-input-number
+          id="edit-timeout"
+          v-model="editForm.session_timeout_minutes"
+          :min="0"
+          :max="1440"
+          class="w-full"
+        />
+        <p class="eyebrow mt-1">blank uses the console default</p>
+        <p v-if="editErrors.session_timeout_minutes" class="mt-1 text-[12px] text-[var(--color-cut)]">
+          {{ editErrors.session_timeout_minutes }}
+        </p>
+      </div>
+    </form>
+
+    <template #footer>
+      <el-button @click="editing = null">Cancel</el-button>
+      <el-button
+        type="primary"
+        :loading="editSaving"
+        :disabled="!editForm.name || !editForm.email"
+        @click="saveEdit"
+      >
+        Save changes
       </el-button>
     </template>
   </el-dialog>

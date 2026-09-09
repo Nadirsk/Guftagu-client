@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 
 import EmptyState from '@/components/EmptyState.vue'
 import PageHead from '@/components/PageHead.vue'
-import { ApiError, api } from '@/lib/api'
+import { ApiError, api, http } from '@/lib/api'
 import type { ExportRow, ReportCatalogue, ReportPreview, RevenueReconciliation } from '@/types/api'
 
 /** GFT-112 — the report centre: builder, preview, downloads (A.10b, A.10c). */
@@ -146,8 +146,32 @@ const overPdfCap = computed(
   () => catalogue.value !== null && (preview.value?.total ?? 0) > catalogue.value.pdf_row_cap,
 )
 
-function downloadUrl(row: ExportRow): string {
-  return `/api/v1/admin/reports-centre/exports/${row.uuid}/download`
+const downloading = ref<Record<string, boolean>>({})
+
+// A plain `<a href>` would navigate the browser straight to the API, with no Authorization
+// header — auth here is a bearer token in localStorage, not a cookie, so that request lands
+// unauthenticated. Fetch it through the same axios instance instead, then hand the browser
+// the bytes as a blob.
+async function download(row: ExportRow) {
+  downloading.value[row.uuid] = true
+  try {
+    const response = await http.get(`/admin/reports-centre/exports/${row.uuid}/download`, {
+      responseType: 'blob',
+    })
+    const disposition = response.headers['content-disposition'] as string | undefined
+    const filename = disposition?.match(/filename="?([^";]+)"?/)?.[1] ?? `${row.type}-report.${row.format}`
+
+    const url = URL.createObjectURL(response.data as Blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    ElMessage.error(e instanceof ApiError ? e.message : 'Could not download that export.')
+  } finally {
+    downloading.value[row.uuid] = false
+  }
 }
 
 const STATUS_TYPE: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
@@ -251,7 +275,7 @@ const STATUS_TYPE: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
         <div
           v-if="reconciliation"
           class="panel border-l-2 px-4 py-3"
-          :class="reconciliation.matches ? 'border-l-[#00A47C]' : 'border-l-[var(--color-signal)]'"
+          :class="reconciliation.matches ? 'border-l-[var(--color-ok)]' : 'border-l-[var(--color-signal)]'"
         >
           <div class="flex flex-wrap items-baseline gap-x-4">
             <span class="key font-bold">
@@ -353,10 +377,12 @@ const STATUS_TYPE: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
               <template #default="{ row }">
                 <a
                   v-if="row.downloadable"
-                  :href="downloadUrl(row)"
+                  href="#"
                   class="text-[13px] text-[var(--color-signal)] hover:underline"
+                  :class="{ 'pointer-events-none opacity-50': downloading[row.uuid] }"
+                  @click.prevent="download(row)"
                 >
-                  Download
+                  {{ downloading[row.uuid] ? 'Downloading…' : 'Download' }}
                 </a>
                 <span v-else-if="row.status === 'ready'" class="eyebrow">expired</span>
               </template>

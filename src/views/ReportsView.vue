@@ -241,7 +241,7 @@ function waited(minutes: number | null): string {
       >
         <div class="eyebrow">{{ lane }}</div>
         <div
-          class="text-[20px] font-semibold"
+          class="stat-figure text-[20px]"
           :class="lane === 'critical' && summary[lane] > 0 ? 'text-[var(--color-signal)]' : ''"
         >
           {{ summary[lane] }}
@@ -249,11 +249,11 @@ function waited(minutes: number | null): string {
       </button>
       <div class="panel px-3 py-2.5">
         <div class="eyebrow">unassigned</div>
-        <div class="text-[20px] font-semibold">{{ summary.unassigned }}</div>
+        <div class="stat-figure text-[20px]">{{ summary.unassigned }}</div>
       </div>
       <div class="panel px-3 py-2.5">
         <div class="eyebrow">yours</div>
-        <div class="text-[20px] font-semibold">{{ summary.mine }}</div>
+        <div class="stat-figure text-[20px]">{{ summary.mine }}</div>
       </div>
     </div>
 

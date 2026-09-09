@@ -113,16 +113,16 @@ function render(value: unknown): string {
 
       <div class="flex flex-wrap gap-6 px-4 py-3">
         <div>
-          <div class="text-[20px] font-semibold">{{ coverage.total.toLocaleString() }}</div>
+          <div class="stat-figure text-[20px]">{{ coverage.total.toLocaleString() }}</div>
           <div class="eyebrow">entries</div>
         </div>
         <div>
-          <div class="text-[20px] font-semibold text-[#00A47C]">{{ coverage.explicit.toLocaleString() }}</div>
+          <div class="stat-figure text-[20px] text-[var(--color-ok)]">{{ coverage.explicit.toLocaleString() }}</div>
           <div class="eyebrow">with a real diff</div>
         </div>
         <div>
           <div
-            class="text-[20px] font-semibold"
+            class="stat-figure text-[20px]"
             :class="coverage.fallback > 0 ? 'text-[var(--color-signal)]' : ''"
           >
             {{ coverage.fallback.toLocaleString() }}
@@ -139,8 +139,8 @@ function render(value: unknown): string {
         >
           <span class="key w-32 shrink-0">{{ m.module }}</span>
           <div class="flex h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-edge)]">
-            <div class="h-full bg-[#00A47C]" :style="{ width: `${(m.explicit / m.total) * 100}%` }" />
-            <div class="h-full bg-[#BF831F]" :style="{ width: `${(m.fallback / m.total) * 100}%` }" />
+            <div class="h-full bg-[var(--color-ok)]" :style="{ width: `${(m.explicit / m.total) * 100}%` }" />
+            <div class="h-full bg-[var(--color-signal)]" :style="{ width: `${(m.fallback / m.total) * 100}%` }" />
           </div>
           <span class="eyebrow w-24 text-right">{{ m.total.toLocaleString() }} entries</span>
         </li>

@@ -32,31 +32,31 @@ defineProps<{ data: ScopedKpis }>()
     <div class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
       <div class="panel px-3 py-2.5">
         <div class="eyebrow">hosts</div>
-        <div class="text-[20px] font-semibold">{{ data.hosts.total }}</div>
+        <div class="stat-figure text-[20px]">{{ data.hosts.total }}</div>
         <div class="eyebrow">{{ data.hosts.under_contract }} under contract</div>
       </div>
       <div class="panel px-3 py-2.5">
         <div class="eyebrow">earning</div>
-        <div class="text-[20px] font-semibold">{{ data.earnings.earning_hosts }}</div>
+        <div class="stat-figure text-[20px]">{{ data.earnings.earning_hosts }}</div>
         <div class="eyebrow">this period</div>
       </div>
       <div class="panel px-3 py-2.5">
         <div class="eyebrow">diamonds</div>
-        <div class="text-[20px] font-semibold">{{ data.earnings.diamonds.toLocaleString() }}</div>
+        <div class="stat-figure text-[20px]">{{ data.earnings.diamonds.toLocaleString() }}</div>
       </div>
       <div class="panel px-3 py-2.5">
         <div class="eyebrow">agency cut</div>
-        <div class="text-[20px] font-semibold text-[var(--color-signal)]">
+        <div class="stat-figure text-[20px] text-[var(--color-signal)]">
           {{ moneyShort(data.earnings.agency_cut_paise) }}
         </div>
       </div>
       <div class="panel px-3 py-2.5">
         <div class="eyebrow">paid to hosts</div>
-        <div class="text-[20px] font-semibold">{{ moneyShort(data.earnings.host_cut_paise) }}</div>
+        <div class="stat-figure text-[20px]">{{ moneyShort(data.earnings.host_cut_paise) }}</div>
       </div>
       <div class="panel px-3 py-2.5">
         <div class="eyebrow">live rooms</div>
-        <div class="text-[20px] font-semibold">{{ data.rooms.live }}</div>
+        <div class="stat-figure text-[20px]">{{ data.rooms.live }}</div>
         <div class="eyebrow">of {{ data.rooms.total }}</div>
       </div>
     </div>
@@ -74,7 +74,7 @@ defineProps<{ data: ScopedKpis }>()
         <div class="border-b border-[var(--color-edge)] px-4 py-2.5"><div class="eyebrow">Targets</div></div>
         <dl class="grid grid-cols-3 gap-2 px-4 py-3 text-[13px]">
           <div><dt class="eyebrow">running</dt><dd class="key text-[18px]">{{ data.targets.running }}</dd></div>
-          <div><dt class="eyebrow">achieved</dt><dd class="key text-[18px] text-[#00A47C]">{{ data.targets.achieved }}</dd></div>
+          <div><dt class="eyebrow">achieved</dt><dd class="key text-[18px] text-[var(--color-ok)]">{{ data.targets.achieved }}</dd></div>
           <div><dt class="eyebrow">missed</dt><dd class="key text-[18px]">{{ data.targets.missed }}</dd></div>
         </dl>
         <RouterLink to="/hosts" class="eyebrow block border-t border-[var(--color-edge)] px-4 py-2 hover:text-[var(--color-signal)]">

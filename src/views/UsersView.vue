@@ -350,8 +350,8 @@ function relative(iso: string | null): string {
       </div>
 
       <div class="flex gap-2">
-        <div class="w-24">
-          <label class="eyebrow mb-1 block" for="new-user-cc">Country code</label>
+        <div class="w-32 shrink-0">
+          <label class="eyebrow mb-1 block whitespace-nowrap" for="new-user-cc">Country code</label>
           <el-input id="new-user-cc" v-model="form.country_code" />
         </div>
         <div class="flex-1">

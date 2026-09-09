@@ -152,14 +152,14 @@ const isSuperAdmin = computed(() => auth.isSuperAdmin)
     <div v-if="summary" class="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <div class="panel px-4 py-3">
         <div class="eyebrow">Waiting</div>
-        <div class="mt-1 text-[22px] leading-none font-semibold tabular-nums">
+        <div class="mt-1 stat-figure text-[22px] leading-none">
           {{ summary.pending_count }}
         </div>
       </div>
       <div class="panel px-4 py-3" :class="summary.awaiting_super_count > 0 ? 'border-l-2 border-l-[var(--color-cut)]' : ''">
         <div class="eyebrow">Needs a Super Admin</div>
         <div
-          class="mt-1 text-[22px] leading-none font-semibold tabular-nums"
+          class="mt-1 stat-figure text-[22px] leading-none"
           :class="summary.awaiting_super_count > 0 ? 'text-[var(--color-cut)]' : ''"
         >
           {{ summary.awaiting_super_count }}

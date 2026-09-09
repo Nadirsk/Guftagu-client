@@ -302,18 +302,18 @@ async function cancel(row: BroadcastRow) {
       <div class="grid grid-cols-3 gap-3">
         <div>
           <div class="eyebrow">reached</div>
-          <div class="text-[20px] font-semibold">{{ outcome.reach?.toLocaleString() }}</div>
+          <div class="stat-figure text-[20px]">{{ outcome.reach?.toLocaleString() }}</div>
         </div>
         <div>
           <div class="eyebrow">opened</div>
           <!-- Null, not 0% — nothing has reported back. -->
-          <div class="text-[20px] font-semibold text-[var(--color-legend)]">
+          <div class="stat-figure text-[20px] text-[var(--color-legend)]">
             {{ outcome.open_rate === null ? '—' : `${((outcome.open_rate ?? 0) * 100).toFixed(0)}%` }}
           </div>
         </div>
         <div>
           <div class="eyebrow">recharged</div>
-          <div class="text-[20px] font-semibold text-[var(--color-signal)]">
+          <div class="stat-figure text-[20px] text-[var(--color-signal)]">
             {{ outcome.recharging_users?.toLocaleString() }}
           </div>
         </div>
@@ -399,11 +399,11 @@ async function cancel(row: BroadcastRow) {
         <div v-if="preview" class="space-y-2">
           <div class="flex items-baseline gap-4">
             <div>
-              <div class="text-[22px] font-semibold">{{ preview.matched.toLocaleString() }}</div>
+              <div class="stat-figure text-[22px]">{{ preview.matched.toLocaleString() }}</div>
               <div class="eyebrow">match</div>
             </div>
             <div>
-              <div class="text-[22px] font-semibold text-[var(--color-signal)]">
+              <div class="stat-figure text-[22px] text-[var(--color-signal)]">
                 {{ preview.reachable_push.toLocaleString() }}
               </div>
               <div class="eyebrow">reachable by push</div>

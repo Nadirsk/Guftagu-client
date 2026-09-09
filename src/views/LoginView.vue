@@ -168,13 +168,13 @@ function backToPassword() {
 <template>
   <div class="flex min-h-full items-center justify-center px-4 py-10">
     <div class="w-full max-w-[380px]">
-      <!-- The mark is a level meter: this console runs a voice platform. -->
       <div class="mb-7 flex items-center gap-2.5">
-        <svg viewBox="0 0 16 16" class="h-5 w-5" aria-hidden="true">
-          <rect x="1" y="9" width="3" height="6" fill="var(--color-signal-dim)" />
-          <rect x="6.5" y="5" width="3" height="10" fill="var(--color-signal)" />
-          <rect x="12" y="2" width="3" height="13" fill="var(--color-signal-dim)" />
-        </svg>
+        <span
+          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--color-signal)] font-(--font-display) text-[16px] font-semibold text-[var(--color-ink)]"
+          aria-hidden="true"
+        >
+          G
+        </span>
         <div>
           <div class="text-[15px] leading-tight font-semibold tracking-tight">Guftagu</div>
           <div class="eyebrow leading-tight">Operations console</div>

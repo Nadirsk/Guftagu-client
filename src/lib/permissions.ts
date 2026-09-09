@@ -145,7 +145,7 @@ export const NAV: NavSection[] = [
       { label: 'Payouts', to: '/payouts', icon: 'Wallet', anyOf: ['payouts.view'] },
       { label: 'Settlements', to: '/settlements', icon: 'Money', anyOf: ['agency.view'] },
       { label: 'Rates & commission', to: '/economy', icon: 'Coin', anyOf: ['economy.ledger_view'] },
-      { label: 'Report centre', to: '/reports', icon: 'DataAnalysis', anyOf: ['reports_export.users'] },
+      { label: 'Report centre', to: '/report-centre', icon: 'DataAnalysis', anyOf: ['reports_export.users'] },
     ],
   },
   {
@@ -161,8 +161,8 @@ export const NAV: NavSection[] = [
     icon: 'WarnTriangleFilled',
     items: [
       { label: 'Support inbox', to: '/support', icon: 'Service', anyOf: ['support.view'] },
-      { label: 'Reports queue', to: '/reports', icon: 'WarnTriangleFilled', anyOf: ['reports.view'] },
-      { label: 'Content filter', to: '/moderation/words', icon: 'Filter', anyOf: ['moderation.bannedwords_manage'] },
+      // { label: 'Reports queue', to: '/reports', icon: 'WarnTriangleFilled', anyOf: ['reports.view'] },
+      // { label: 'Content filter', to: '/moderation/words', icon: 'Filter', anyOf: ['moderation.bannedwords_manage'] },
       { label: 'Moderator activity', to: '/moderation/activity', icon: 'View', anyOf: ['moderation.logs_view'] },
     ],
   },

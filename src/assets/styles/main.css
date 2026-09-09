@@ -1,79 +1,84 @@
 @import 'tailwindcss';
 
 /*
-  Guftagu Console — an audio control desk, not a dashboard.
+  Guftagu Console — a ledger, not a dashboard.
 
-  Guftagu is live voice rooms, so the panel borrows the language of a broadcast gallery:
-  slate panelwork, signal lamps, channel strips. That is not decoration — it maps onto
-  what this console actually does. A role baseline is the default mix, a direct grant is
-  a channel pushed up, an explicit deny is a hard mute that overrides the mix, and a
-  scoped grant is literally a broadcast shift (the spec's own example runs 18:00–02:00).
+  This console reconciles real money: coins, diamonds, payouts, settlements, refunds. The
+  redesign (2026-09-08, replacing the "control desk" concept) borrows the vocabulary of an
+  ops/finance terminal instead of a broadcast gallery: graphite ink on a quiet paper canvas,
+  hairline rule rather than heavy borders, tabular figures, and exactly one accent — a
+  decisive blue — spent on the things that are actually actionable (links, primary actions,
+  the current nav item), never as ambient decoration. A permission grant, a settlement, a
+  suspended account: these are entries in a record, so the big numbers get a serif display
+  treatment (Fraunces) the way a printed statement sets its headline figure, and everything
+  supporting it stays quiet sans-serif.
 
-  The desk still ships two lightings: dark for the night shift the scope example
-  describes, light for daytime moderation. Same channel strips, same lamps — only the
-  ambient light around them changes. Light values live here as the default; `html.dark`
-  below swaps in the night-shift values.
+  Two lightings, same ledger: light is the default working light, `html.dark` swaps in the
+  night values. Nothing about the *shape* of the system changes between them, only the ink.
 */
 @theme {
-  /* Panelwork — desaturated blue-slate paperwork, daylight lighting. Panel stays off-white
-     rather than stark #fff, and recess sits meaningfully darker than it, so cards read as
-     panels sitting on a desk rather than one flat white page. */
-  --color-recess: #d3dbe8;
-  --color-panel: #f8fafc;
-  --color-raised: #edf1f6;
-  --color-edge: #b9c5da;
-  --color-edge-bright: #8798b3;
+  /* Panelwork — quiet paper, not stark white. Recess sits a shade behind panel so a panel
+     still reads as a distinct sheet, but the separation is a hairline and a whisper of
+     shadow, never a heavy border. */
+  --color-recess: #eef0f3;
+  --color-panel: #ffffff;
+  --color-raised: #f6f7f9;
+  --color-edge: #e2e5eb;
+  --color-edge-bright: #c7ccd6;
 
   /* Type */
-  --color-paper: #151c28;
-  --color-legend: #55637a;
-  --color-legend-dim: #8895aa;
+  --color-paper: #14171f;
+  --color-legend: #5b6270;
+  --color-legend-dim: #8b909c;
 
-  /* Signal lamps. Amber is "live / granted" — the tally lamp on a desk.
-     Red is reserved strictly for deny and destructive, the way a cut button is.
-     Deepened from the dark-mode hues so they hold contrast on paper-white panels. */
-  --color-signal: #a15c0d;
-  --color-signal-dim: #f3ddb2;
+  /* One accent, spent deliberately: a decisive blue for anything actionable. Red is
+     reserved strictly for deny/destructive; green for settled/reconciled/success. */
+  --color-signal: #2952cc;
+  --color-signal-dim: #dce5fa;
   --color-cut: #c22e26;
-  --color-cut-dim: #f7d6d3;
-  --color-ok: #147a63;
-  --color-ok-dim: #cdeee4;
-  --color-route: #3b5ec7;
+  --color-cut-dim: #f8dad8;
+  --color-ok: #157a5b;
+  --color-ok-dim: #d3eee4;
+  /* A quieter, secondary blue for inline links/notes that would otherwise compete with the
+     one accent above — never used for a primary action. */
+  --color-route: #4a6fa5;
 
-  /* Always-dark ink for text/icons laid directly on a signal-amber fill — decoupled
-     from --color-recess so it stays legible whichever way the desk is lit. */
-  --color-ink: #10151c;
+  /* Always-dark ink for text/icons laid directly on a signal-blue fill — decoupled from
+     --color-recess so it stays legible whichever way the ledger is lit. */
+  --color-ink: #f7f9ff;
 
-  --font-ui: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --font-ui: 'Public Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --radius-panel: 3px;
+  --radius-panel: 6px;
 }
 
 html.dark {
   color-scheme: dark;
 
-  /* Panelwork — desaturated blue-slate, never pure black. */
-  --color-recess: #10151c;
-  --color-panel: #1a2230;
-  --color-raised: #222c3d;
-  --color-edge: #2f3c52;
-  --color-edge-bright: #3f5170;
+  /* Panelwork — cool graphite, never pure black. */
+  --color-recess: #14161b;
+  --color-panel: #1b1e25;
+  --color-raised: #23262e;
+  --color-edge: #2b2f38;
+  --color-edge-bright: #3b414c;
 
   /* Type */
-  --color-paper: #eef2f7;
-  --color-legend: #8494ab;
-  --color-legend-dim: #5d6b81;
+  --color-paper: #edeef1;
+  --color-legend: #939aa6;
+  --color-legend-dim: #656b75;
 
-  /* Signal lamps. Amber is "live / granted" — the tally lamp on a desk.
-     Red is reserved strictly for deny and destructive, the way a cut button is. */
-  --color-signal: #f0a93b;
-  --color-signal-dim: #7a5720;
-  --color-cut: #e0574f;
-  --color-cut-dim: #6d2b2a;
-  --color-ok: #3fbfa0;
-  --color-ok-dim: #1e5a4c;
-  --color-route: #6f8fd6;
+  /* Same accent family, lifted so it still reads as "the" blue on a dark ground. */
+  --color-signal: #6e93ff;
+  --color-signal-dim: #253355;
+  --color-cut: #e5645c;
+  --color-cut-dim: #4a2321;
+  --color-ok: #3fbf95;
+  --color-ok-dim: #1b4438;
+  --color-route: #8aa6d6;
+
+  --color-ink: #0a0e1a;
 }
 
 /* ---------------------------------------------------------------- base */
@@ -97,31 +102,40 @@ body {
     color 0.15s ease;
 }
 
-/* Permission keys are dotted identifiers. Monospace is functionally right here —
-   alignment is what lets you scan 79 of them — not a stylistic flourish. */
+/* Permission keys, ids and timestamps are literal identifiers. Monospace is functionally
+   right here — alignment is what lets you scan 79 of them — not a stylistic flourish. */
 .key {
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 
-/* Panel eyebrow: the little engraved label above a rack of controls. */
+/* A field label, sentence case: it names what follows rather than announcing itself. */
 .eyebrow {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui);
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-legend-dim);
+  color: var(--color-legend);
+}
+
+/* The headline figure on a stat tile — the one place this ledger spends a display face.
+   Tabular so a refreshing counter never reflows its neighbours. */
+.stat-figure {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .panel {
   background: var(--color-panel);
   border: 1px solid var(--color-edge);
   border-radius: var(--radius-panel);
-  /* Daylight has no glow to lean on, so a soft drop shadow does the job the amber lamps
-     do at night: it tells a panel apart from the desk it sits on. */
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-ink) 6%, transparent);
+  /* A soft, close shadow — just enough to lift a panel off the canvas behind it, never a
+     floating card. Dark mode has enough natural separation from the raised surface tone
+     that it drops the shadow rather than fake one. */
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-paper) 5%, transparent);
 }
 
 html.dark .panel {
@@ -216,7 +230,7 @@ html.dark .panel {
   --el-bg-color-page: var(--color-recess);
 
   --el-text-color-primary: var(--color-paper);
-  --el-text-color-regular: #37455a;
+  --el-text-color-regular: #37404f;
   --el-text-color-secondary: var(--color-legend);
   --el-text-color-placeholder: var(--color-legend-dim);
 
@@ -224,8 +238,8 @@ html.dark .panel {
   --el-border-color-light: var(--color-edge);
   --el-border-color-lighter: var(--color-edge);
   --el-border-color-extra-light: var(--color-raised);
-  --el-border-radius-base: 3px;
-  --el-border-radius-small: 2px;
+  --el-border-radius-base: 6px;
+  --el-border-radius-small: 4px;
 
   --el-fill-color-blank: var(--color-panel);
   --el-fill-color-light: var(--color-raised);
@@ -258,10 +272,12 @@ html.dark {
   --el-color-success-light-9: color-mix(in srgb, var(--color-ok) 12%, black);
   --el-color-success-dark-2: color-mix(in srgb, var(--color-ok) 85%, white);
 
-  --el-text-color-regular: #c3cddb;
+  --el-text-color-regular: #c7cbd3;
 }
 
-/* Amber on slate needs dark ink to stay legible — Element Plus assumes white. */
+/* The accent is a mid-value blue in both themes, not a bright chip — Element Plus assumes
+   a light fill needing dark text, which is wrong here in light mode. --color-ink flips per
+   theme so this stays legible either way. */
 .el-button--primary {
   --el-button-text-color: var(--color-ink);
   --el-button-hover-text-color: var(--color-ink);
@@ -285,11 +301,11 @@ html.dark {
   font-weight: 600;
 }
 
-/* Element Plus tags default to a washed pastel; make them read as machine labels. */
+/* Element Plus tags default to a washed pastel; read as a status entry instead — sentence
+   case, a touch of weight, sitting flush with the rest of the type system. */
 .el-tag {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-radius: 2px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
 }

@@ -3,6 +3,7 @@ import { ElMessageBox } from 'element-plus'
 import { computed, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 
+import NotificationBell from '@/components/NotificationBell.vue'
 import SideRail from '@/components/SideRail.vue'
 import { useCriticalAlerts } from '@/composables/useCriticalAlerts'
 import { useTheme } from '@/composables/useTheme'
@@ -85,6 +86,9 @@ async function signOut() {
           idle {{ auth.idleTimeoutMinutes }}m
         </div>
 
+        <!-- C.5a / general — every role's own inbox, no permission key. -->
+        <NotificationBell />
+
         <button
           type="button"
           class="flex h-7 w-7 shrink-0 items-center justify-center text-[var(--color-legend)] transition-colors hover:text-[var(--color-paper)]"
@@ -106,12 +110,10 @@ async function signOut() {
 
         <RouterLink
           to="/account"
-          class="flex items-center gap-2 border border-[var(--color-edge)] px-2 py-1 transition-colors hover:border-[var(--color-edge-bright)]"
-          style="border-radius: 3px"
+          class="flex items-center gap-2 rounded-full border border-[var(--color-edge)] py-1 pr-3 pl-1 transition-colors hover:border-[var(--color-edge-bright)]"
         >
           <span
-            class="flex h-6 w-6 items-center justify-center bg-[var(--color-signal)] text-[11px] font-bold text-[var(--color-ink)]"
-            style="border-radius: 2px"
+            class="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-signal)] text-[11px] font-bold text-[var(--color-ink)]"
             aria-hidden="true"
           >
             {{ initials }}

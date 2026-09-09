@@ -87,7 +87,7 @@ const peak = computed(() =>
       <div
         v-if="verification"
         class="panel border-l-2 px-4 py-3"
-        :class="verification.matches ? 'border-l-[#00A47C]' : 'border-l-[var(--color-cut)]'"
+        :class="verification.matches ? 'border-l-[var(--color-ok)]' : 'border-l-[var(--color-cut)]'"
       >
         <div class="flex flex-wrap items-baseline gap-x-4">
           <span class="key font-bold">
@@ -153,7 +153,7 @@ const peak = computed(() =>
               <div
                 v-for="d in detail.daily"
                 :key="d.date"
-                class="flex-1 rounded-t-[2px] bg-[#BF831F]"
+                class="flex-1 rounded-t-[2px] bg-[var(--color-signal)]"
                 :style="{ height: `${Math.max(2, (d.diamonds_earned / peak) * 100)}%` }"
                 :title="`${d.date} — ${d.diamonds_earned.toLocaleString()} diamonds`"
               />
@@ -246,7 +246,7 @@ const peak = computed(() =>
                     class="h-full rounded-full"
                     :style="{
                       width: `${Math.min(100, t.achievement_pct ?? 0)}%`,
-                      background: (t.achievement_pct ?? 0) >= 100 ? '#00A47C' : '#BF831F',
+                      background: (t.achievement_pct ?? 0) >= 100 ? 'var(--color-ok)' : 'var(--color-signal)',
                     }"
                   />
                 </div>
