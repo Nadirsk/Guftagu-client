@@ -717,8 +717,50 @@ export interface ReconciliationReport {
 
 // ---------------------------------------------------------------- epic A.9
 
-export type EventType = 'event' | 'tournament' | 'lucky_draw'
+export type EventType = 'event' | 'tournament' | 'lucky_draw' | 'recharge_activity' | 'weekly_star' | 'custom'
 export type EventPhase = 'draft' | 'upcoming' | 'live' | 'ended' | 'cancelled'
+export type EventPeriod = 'daily' | 'weekly' | 'monthly'
+
+/** What a campaign event's progress/standings measure. gift_value/gift_count read metric_ref_id/metric_ref_type. */
+export type ProgressMetric = 'recharge_amount' | 'coins_spent' | 'diamonds_earned' | 'gift_value' | 'gift_count'
+export type MetricRefType = 'gift' | 'gift_category'
+
+/**
+ * The block library an Event Builder screen is composed from. `layout` is an ordered
+ * array of block *instances* — an admin adds, reorders, configures and styles them
+ * freely, so a new screen is a new arrangement of blocks, never a code change.
+ * `text`/`image`/`spacer` exist so a layout is never boxed into only the
+ * campaign-specific blocks below.
+ */
+export type BlockType =
+  | 'banner'
+  | 'countdown'
+  | 'my_progress_card'
+  | 'tier_grid'
+  | 'tabs'
+  | 'leaderboard_list'
+  | 'reward_bundle_card'
+  | 'rules_button'
+  | 'text'
+  | 'image'
+  | 'spacer'
+
+/** Visual knobs every block understands, whether or not it uses all of them. */
+export interface BlockStyle {
+  bg_color?: string | null
+  bg_image_url?: string | null
+  text_color?: string | null
+  padding?: number | null
+  corner_radius?: number | null
+}
+
+export interface EventBlock {
+  id: string
+  type: BlockType
+  /** Shape depends on `type` — see EventBuilderView's per-type config form. */
+  config: Record<string, unknown>
+  style: BlockStyle
+}
 
 export interface EventRow {
   id: number
@@ -740,6 +782,51 @@ export interface EventRow {
   is_featured: boolean
   participant_count: number
   created_by: string | null
+  /** Campaign events only, below — recharge_activity, weekly_star, and any custom event. */
+  is_campaign: boolean
+  period: EventPeriod | null
+  progress_metric: ProgressMetric | null
+  metric_ref_id: number | null
+  metric_ref_type: MetricRefType | null
+  ranking_rule_key: string | null
+  layout: EventBlock[]
+}
+
+/** `manual` is the escape hatch: any reward with no automated grant path, recorded not faked. */
+export type RewardHandlerKey = 'coins' | 'diamonds' | 'vip' | 'frame' | 'chat_bubble' | 'entry_effect' | 'badge' | 'manual'
+
+export interface RewardCatalogItemRow {
+  id: number
+  name: string
+  icon_url: string | null
+  description: string | null
+  handler_key: RewardHandlerKey
+  handler_ref_id: number | null
+  /** Resolved display name for handler_ref_id, e.g. "700K Frame" or "VIP Gold". */
+  handler_ref_label: string | null
+  is_active: boolean
+}
+
+export interface EventTierRewardRow {
+  id: number
+  reward_value: number | null
+  duration_days: number | null
+  label: string | null
+  catalog: RewardCatalogItemRow
+  grantable: boolean
+}
+
+export interface EventTierRow {
+  id: number
+  tier_type: 'threshold' | 'rank_range'
+  period: EventPeriod | null
+  threshold_value: number | null
+  rank_from: number | null
+  rank_to: number | null
+  label: string
+  image_url: string | null
+  sort_order: number
+  rewards: EventTierRewardRow[]
 }
 
 export interface EventRewardRow {
@@ -811,6 +898,7 @@ export interface BoardResult {
     score: number
     guftagu_id: string | null
     display_name: string | null
+    avatar_url: string | null
   }>
   source: { live: boolean; note: string }
 }

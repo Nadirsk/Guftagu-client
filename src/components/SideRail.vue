@@ -2,6 +2,7 @@
 import {
   Aim,
   ArrowRight,
+  Calendar,
   Coin,
   DataAnalysis,
   Filter,
@@ -41,6 +42,7 @@ import { useAuthStore } from '@/stores/auth'
 // than `import *` so the sidebar doesn't drag in the whole ~300-icon library.
 const ICONS = {
   Aim,
+  Calendar,
   Coin,
   DataAnalysis,
   Filter,

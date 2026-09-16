@@ -6,16 +6,31 @@ import { useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHead from '@/components/PageHead.vue'
 import { ApiError, api } from '@/lib/api'
-import type { EventPhase, EventRow, EventType } from '@/types/api'
+import type { EventPhase, EventRow, EventType, MetricRefType, ProgressMetric, RankingRuleRow } from '@/types/api'
 
-/** GFT-099 — the event list and builder. */
+/** GFT-099 — the event list and builder, plus the campaign-event types (Recharge
+ * Activity, Weekly Star, and any Custom event) that open into the Event Builder instead
+ * of the rank-band view. */
 const router = useRouter()
+
+const CAMPAIGN_TYPES: EventType[] = ['recharge_activity', 'weekly_star', 'custom']
+
+const PROGRESS_METRIC_LABELS: Record<ProgressMetric, string> = {
+  recharge_amount: 'Coins recharged (real money top-up)',
+  coins_spent: 'Coins spent',
+  diamonds_earned: 'Diamonds earned',
+  gift_value: 'Gift value sent (coins)',
+  gift_count: 'Gifts sent (count)',
+}
 
 const rows = ref<EventRow[]>([])
 const loading = ref(true)
 const total = ref(0)
 const phase = ref<'' | EventPhase>('')
 const type = ref<'' | EventType>('')
+const rankingRules = ref<RankingRuleRow[]>([])
+const gifts = ref<Array<{ id: number; name_en: string }>>([])
+const giftCategories = ref<Array<{ id: number; name_en: string }>>([])
 
 const dialog = ref(false)
 const saving = ref(false)
@@ -33,12 +48,41 @@ const form = reactive({
   max_participants: null as number | null,
   winner_count: 3,
   algorithm: 'random',
+  period: 'monthly' as '' | 'daily' | 'weekly' | 'monthly',
+  progress_metric: 'recharge_amount' as ProgressMetric,
+  ranking_rule_key: '' as string,
+  // custom events only — which drives standings
+  standings_source: 'metric' as 'metric' | 'ranking_rule',
+  metric_ref_type: '' as '' | MetricRefType,
+  metric_ref_id: null as number | null,
 })
 
 onMounted(async () => {
-  await load()
+  await Promise.all([load(), loadRankingRules(), loadGiftCatalogues()])
   loading.value = false
 })
+
+async function loadRankingRules() {
+  try {
+    const { data } = await api.get<{ rules: RankingRuleRow[] }>('/admin/ranking-rules')
+    rankingRules.value = data.rules
+  } catch {
+    // Only needed for the weekly_star/custom create form — silently unavailable is fine.
+  }
+}
+
+async function loadGiftCatalogues() {
+  try {
+    const [giftsRes, categoriesRes] = await Promise.all([
+      api.get<Array<{ id: number; name_en: string }>>('/admin/gifts', { per_page: 100 }),
+      api.get<Array<{ id: number; name_en: string }>>('/admin/gift-categories'),
+    ])
+    gifts.value = giftsRes.data
+    giftCategories.value = categoriesRes.data
+  } catch {
+    // Only needed for a custom event's gift_value/gift_count ref picker.
+  }
+}
 
 async function load() {
   try {
@@ -64,6 +108,8 @@ function create() {
     starts_at: start.toISOString().slice(0, 19),
     ends_at: end.toISOString().slice(0, 19),
     max_participants: null, winner_count: 3, algorithm: 'random',
+    period: 'monthly', progress_metric: 'recharge_amount', ranking_rule_key: '',
+    standings_source: 'metric', metric_ref_type: '', metric_ref_id: null,
   })
   errors.value = {}
   dialog.value = true
@@ -88,6 +134,29 @@ async function save() {
   if (form.type === 'lucky_draw') {
     body.winner_count = form.winner_count
     body.algorithm = form.algorithm
+  }
+
+  if (form.type === 'recharge_activity') {
+    body.progress_metric = form.progress_metric
+    body.period = form.period
+  }
+
+  if (form.type === 'weekly_star') {
+    body.ranking_rule_key = form.ranking_rule_key
+    body.period = form.period
+  }
+
+  if (form.type === 'custom') {
+    body.period = form.period || null
+    if (form.standings_source === 'ranking_rule') {
+      body.ranking_rule_key = form.ranking_rule_key
+    } else {
+      body.progress_metric = form.progress_metric
+      if (form.progress_metric === 'gift_value' || form.progress_metric === 'gift_count') {
+        body.metric_ref_type = form.metric_ref_type || null
+        body.metric_ref_id = form.metric_ref_type ? form.metric_ref_id : null
+      }
+    }
   }
 
   try {
@@ -149,7 +218,8 @@ async function cancel(row: EventRow) {
 }
 
 function open(row: EventRow) {
-  void router.push({ name: 'event-detail', params: { id: row.id } })
+  const name = CAMPAIGN_TYPES.includes(row.type) ? 'event-builder' : 'event-detail'
+  void router.push({ name, params: { id: row.id } })
 }
 
 // 'draft' deliberately has no entry — ElTag only accepts primary/success/info/warning/
@@ -180,10 +250,12 @@ function isStaleDraft(row: EventRow): boolean {
     :lede="`${total} events. A published event goes live and ends on its own — the phase comes from the clock, not from anyone remembering to change it.`"
   >
     <template #actions>
-      <el-select v-model="type" placeholder="Any type" clearable size="small" class="w-36" @change="load">
+      <el-select v-model="type" placeholder="Any type" clearable size="small" class="w-40" @change="load">
         <el-option label="Event" value="event" />
         <el-option label="Tournament" value="tournament" />
         <el-option label="Lucky draw" value="lucky_draw" />
+        <el-option label="Recharge Activity" value="recharge_activity" />
+        <el-option label="Weekly Star" value="weekly_star" />
       </el-select>
       <el-select v-model="phase" placeholder="Any phase" clearable size="small" class="w-36" @change="load">
         <el-option label="Live" value="live" />
@@ -274,6 +346,9 @@ function isStaleDraft(row: EventRow): boolean {
           <el-radio-button value="event">Event</el-radio-button>
           <el-radio-button value="tournament">Tournament</el-radio-button>
           <el-radio-button value="lucky_draw">Lucky draw</el-radio-button>
+          <el-radio-button value="recharge_activity">Recharge Activity</el-radio-button>
+          <el-radio-button value="weekly_star">Weekly Star</el-radio-button>
+          <el-radio-button value="custom">Custom</el-radio-button>
         </el-radio-group>
       </div>
 
@@ -356,6 +431,96 @@ function isStaleDraft(row: EventRow): boolean {
           a seed is committed the moment this is created and only its hash is published —
           the seed itself appears after the draw, so anyone can check the result
         </p>
+      </div>
+
+      <div v-if="form.type === 'recharge_activity'" class="border-t border-[var(--color-edge)] pt-3">
+        <label class="eyebrow mb-1 block">Recharge window</label>
+        <el-radio-group v-model="form.period" size="small">
+          <el-radio-button value="daily">Daily</el-radio-button>
+          <el-radio-button value="weekly">Weekly</el-radio-button>
+          <el-radio-button value="monthly">Monthly</el-radio-button>
+        </el-radio-group>
+        <p class="eyebrow mt-2 leading-relaxed">
+          tiers and their thresholds are added afterwards, in the builder — this only sets the
+          window a user's recharge total is measured over
+        </p>
+      </div>
+
+      <div v-if="form.type === 'weekly_star'" class="border-t border-[var(--color-edge)] pt-3">
+        <label class="eyebrow mb-1 block">Driven by ranking rule</label>
+        <el-select v-model="form.ranking_rule_key" class="w-full" placeholder="Select a rule">
+          <el-option v-for="rule in rankingRules" :key="rule.key" :label="`${rule.key} (${rule.board_type} · ${rule.period})`" :value="rule.key" />
+        </el-select>
+        <p class="eyebrow mt-2 leading-relaxed">
+          standings come from this rule's leaderboard — rank bands and reward bundles are added
+          afterwards, in the builder
+        </p>
+      </div>
+
+      <div v-if="form.type === 'custom'" class="space-y-3 border-t border-[var(--color-edge)] pt-3">
+        <div>
+          <label class="eyebrow mb-1 block">Window</label>
+          <el-radio-group v-model="form.period" size="small">
+            <el-radio-button value="">Fixed dates only (no recurrence)</el-radio-button>
+            <el-radio-button value="daily">Daily</el-radio-button>
+            <el-radio-button value="weekly">Weekly</el-radio-button>
+            <el-radio-button value="monthly">Monthly</el-radio-button>
+          </el-radio-group>
+          <p class="eyebrow mt-1 leading-relaxed">
+            "Fixed dates only" scores strictly between Starts and Ends above — e.g. a one-off
+            event running Sep 9 to Nov 9. A recurring window re-opens every day/week/month instead.
+          </p>
+        </div>
+
+        <div>
+          <label class="eyebrow mb-1 block">Standings driven by</label>
+          <el-radio-group v-model="form.standings_source" size="small">
+            <el-radio-button value="metric">A progress metric</el-radio-button>
+            <el-radio-button value="ranking_rule">An existing ranking rule</el-radio-button>
+          </el-radio-group>
+        </div>
+
+        <template v-if="form.standings_source === 'metric'">
+          <div>
+            <label class="eyebrow mb-1 block">Metric</label>
+            <el-select v-model="form.progress_metric" class="w-full">
+              <el-option v-for="(label, key) in PROGRESS_METRIC_LABELS" :key="key" :label="label" :value="key" />
+            </el-select>
+          </div>
+
+          <div v-if="form.progress_metric === 'gift_value' || form.progress_metric === 'gift_count'" class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="eyebrow mb-1 block">Scope</label>
+              <el-select v-model="form.metric_ref_type" class="w-full" clearable placeholder="Any gift">
+                <el-option label="One specific gift" value="gift" />
+                <el-option label="One whole category" value="gift_category" />
+              </el-select>
+            </div>
+            <div v-if="form.metric_ref_type">
+              <label class="eyebrow mb-1 block">Which one</label>
+              <el-select v-model="form.metric_ref_id" class="w-full" filterable>
+                <el-option
+                  v-for="g in (form.metric_ref_type === 'gift' ? gifts : giftCategories)"
+                  :key="g.id"
+                  :label="g.name_en"
+                  :value="g.id"
+                />
+              </el-select>
+            </div>
+          </div>
+          <p class="eyebrow leading-relaxed">
+            e.g. "whoever sends the most Rose Gift" — metric "Gifts sent" or "Gift value", scope
+            "One specific gift" → Rose Gift. Tier type (thresholds or rank bands) and reward
+            bundles are added afterwards, in the builder.
+          </p>
+        </template>
+
+        <div v-else>
+          <label class="eyebrow mb-1 block">Ranking rule</label>
+          <el-select v-model="form.ranking_rule_key" class="w-full" placeholder="Select a rule">
+            <el-option v-for="rule in rankingRules" :key="rule.key" :label="`${rule.key} (${rule.board_type} · ${rule.period})`" :value="rule.key" />
+          </el-select>
+        </div>
       </div>
     </div>
 

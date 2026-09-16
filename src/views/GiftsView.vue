@@ -204,14 +204,16 @@ async function save() {
   const body: Record<string, unknown> = {
     name_en: form.name_en,
     name_hi: form.name_hi || null,
-    category_id: form.category_id,
+    category_id: form.category_id ?? null,
     tier: form.tier,
     coin_price: form.coin_price,
     diamond_value: form.diamond_value,
     thumbnail_url: form.thumbnail_url,
     is_fullscreen: form.is_fullscreen,
     is_combo_enabled: form.is_combo_enabled,
-    required_vip_tier_id: form.required_vip_tier_id,
+    // el-select's clear button resets to `undefined`, not `null` — and axios/JSON.stringify
+    // drops `undefined` keys entirely, so the backend never sees the field to clear it.
+    required_vip_tier_id: form.required_vip_tier_id ?? null,
     is_limited: form.is_limited,
     available_from: form.available_from || null,
     available_to: form.available_to || null,

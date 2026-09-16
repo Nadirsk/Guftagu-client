@@ -142,7 +142,9 @@ async function save() {
     name: form.name,
     coin_price: form.coin_price,
     rental_days: form.rental_days,
-    required_vip_tier_id: form.required_vip_tier_id,
+    // el-select's clear button resets to `undefined`, not `null` — and axios/JSON.stringify
+    // drops `undefined` keys entirely, so the backend never sees the field to clear it.
+    required_vip_tier_id: form.required_vip_tier_id ?? null,
     is_active: form.is_active,
   };
 

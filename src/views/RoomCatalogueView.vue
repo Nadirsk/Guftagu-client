@@ -219,7 +219,9 @@ async function saveTheme() {
     background_url: themeForm.background_url,
     preview_url: themeForm.preview_url,
     is_premium: themeForm.is_premium,
-    required_vip_tier_id: themeForm.is_premium ? themeForm.required_vip_tier_id : null,
+    // el-select's clear button resets to `undefined`, not `null` — and axios/JSON.stringify
+    // drops `undefined` keys entirely, so the backend never sees the field to clear it.
+    required_vip_tier_id: themeForm.is_premium ? (themeForm.required_vip_tier_id ?? null) : null,
     coin_price: themeForm.coin_price,
     is_active: themeForm.is_active,
   }
