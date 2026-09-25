@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 
+import EmptyState from '@/components/EmptyState.vue'
 import PageHead from '@/components/PageHead.vue'
 import { ApiError, api } from '@/lib/api'
 import type {
+  EconomyLedgerRow,
   PackageRow,
   RatesResult,
   ReconciliationReport,
@@ -19,8 +22,67 @@ const slabs = ref<SlabsResult | null>(null)
 const report = ref<ReconciliationReport | null>(null)
 
 const loading = ref(true)
-const tab = ref<'rates' | 'packages' | 'commission' | 'reconciliation'>('rates')
+const tab = ref<'rates' | 'packages' | 'commission' | 'ledger' | 'reconciliation'>('rates')
 const running = ref(false)
+
+// -------------------------------------------------------------------- ledger
+
+/** GFT-072 — every wallet's movements, both currencies, not scoped to one user (A.7d). */
+const ledgerRows = ref<EconomyLedgerRow[]>([])
+const ledgerLoading = ref(false)
+const ledgerLoaded = ref(false)
+const ledgerTotal = ref(0)
+
+const ledgerFilters = reactive({
+  currency: 'coin' as 'coin' | 'diamond',
+  type: '',
+  user_id: '' as number | '',
+  from: '',
+  to: '',
+  page: 1,
+  per_page: 50,
+})
+
+watch(
+  () => [
+    ledgerFilters.currency,
+    ledgerFilters.type,
+    ledgerFilters.user_id,
+    ledgerFilters.from,
+    ledgerFilters.to,
+    ledgerFilters.page,
+  ],
+  () => {
+    if (tab.value === 'ledger') void loadLedger()
+  },
+)
+
+async function loadLedger() {
+  ledgerLoading.value = true
+  try {
+    const { data, meta } = await api.get<EconomyLedgerRow[]>('/admin/economy/ledger', {
+      currency: ledgerFilters.currency,
+      type: ledgerFilters.type || undefined,
+      user_id: ledgerFilters.user_id || undefined,
+      from: ledgerFilters.from || undefined,
+      to: ledgerFilters.to || undefined,
+      page: ledgerFilters.page,
+      per_page: ledgerFilters.per_page,
+    })
+    ledgerRows.value = data
+    ledgerTotal.value = meta.total ?? data.length
+  } catch (e) {
+    if (e instanceof ApiError && e.code !== 'PERMISSION_DENIED') ElMessage.error(e.message)
+  } finally {
+    ledgerLoading.value = false
+    ledgerLoaded.value = true
+  }
+}
+
+function onTab(next: string | number) {
+  tab.value = next as typeof tab.value
+  if (tab.value === 'ledger' && !ledgerLoaded.value) void loadLedger()
+}
 
 const rateDialog = ref(false)
 const slabDialog = ref(false)
@@ -179,6 +241,14 @@ function money(paise: number): string {
   return `₹${(paise / 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
 }
 
+function format(n: number): string {
+  return n.toLocaleString()
+}
+
+function when(iso: string | null): string {
+  return iso ? iso.slice(0, 19).replace('T', ' ') : '—'
+}
+
 function rangeLabel(slab: SlabRow): string {
   const from = slab.min_value.toLocaleString()
   return slab.max_value === null ? `${from} and above` : `${from} – ${slab.max_value.toLocaleString()}`
@@ -206,7 +276,7 @@ const totalMismatches = computed(() =>
       numbers need no code change.
     </p>
 
-    <el-tabs :model-value="tab" @update:model-value="tab = $event as typeof tab">
+    <el-tabs :model-value="tab" @update:model-value="onTab">
       <!-- Rates -->
       <el-tab-pane label="Conversion rates" name="rates">
         <div class="grid gap-4 lg:grid-cols-2">
@@ -358,6 +428,109 @@ const totalMismatches = computed(() =>
               <span class="eyebrow">closed {{ new Date(slab.effective_to!).toLocaleDateString() }}</span>
             </li>
           </ul>
+        </div>
+      </el-tab-pane>
+
+      <!-- Ledger -->
+      <el-tab-pane label="Transaction ledger" name="ledger">
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+          <el-select v-model="ledgerFilters.currency" size="small" style="width: 120px">
+            <el-option label="Coins" value="coin" />
+            <el-option label="Diamonds" value="diamond" />
+          </el-select>
+          <el-input
+            v-model="ledgerFilters.type"
+            placeholder="Type — e.g. admin_credit"
+            size="small"
+            clearable
+            style="width: 200px"
+          />
+          <el-input-number
+            v-model="ledgerFilters.user_id"
+            :controls="false"
+            placeholder="User ID"
+            size="small"
+            style="width: 120px"
+          />
+          <el-input v-model="ledgerFilters.from" type="date" size="small" style="width: 150px" />
+          <el-input v-model="ledgerFilters.to" type="date" size="small" style="width: 150px" />
+        </div>
+
+        <div v-loading="ledgerLoading" class="panel">
+          <EmptyState
+            v-if="ledgerLoaded && !ledgerLoading && ledgerRows.length === 0"
+            title="No movements match"
+            body="Widen the dates, or clear a filter. Every credit and debit against a wallet lands here, immutable, across every user."
+          />
+
+          <el-table v-else :data="ledgerRows" style="width: 100%">
+            <el-table-column label="When" width="170">
+              <template #default="{ row }: { row: EconomyLedgerRow }">
+                <span class="key text-[var(--color-legend)]">{{ when(row.created_at) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="User" min-width="140">
+              <template #default="{ row }: { row: EconomyLedgerRow }">
+                <RouterLink
+                  v-if="row.user"
+                  :to="`/users/${row.user.id}`"
+                  class="key hover:text-[var(--color-signal)]"
+                >
+                  {{ row.user.guftagu_id }}
+                </RouterLink>
+                <span v-else class="eyebrow">—</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Type" width="150">
+              <template #default="{ row }: { row: EconomyLedgerRow }">
+                <span class="key">{{ row.type }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Change" width="130" align="right">
+              <template #default="{ row }: { row: EconomyLedgerRow }">
+                <span
+                  class="key font-bold"
+                  :class="row.direction === 'credit' ? 'text-[var(--color-ok)]' : 'text-[var(--color-cut)]'"
+                >
+                  {{ row.direction === 'credit' ? '+' : '−' }}{{ format(row.amount) }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Balance" width="170" align="right">
+              <template #default="{ row }: { row: EconomyLedgerRow }">
+                <span class="key text-[var(--color-legend)]">
+                  {{ format(row.balance_before) }} → {{ format(row.balance_after) }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Reference" width="150">
+              <template #default="{ row }: { row: EconomyLedgerRow }">
+                <span v-if="row.reference_type" class="key text-[var(--color-legend)]">
+                  {{ row.reference_type }} #{{ row.reference_id }}
+                </span>
+                <span v-else class="eyebrow">—</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Note" min-width="180">
+              <template #default="{ row }: { row: EconomyLedgerRow }">
+                <div class="text-[13px]">{{ row.note ?? '—' }}</div>
+                <div v-if="row.performed_by" class="eyebrow">by {{ row.performed_by }}</div>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <div
+            v-if="ledgerTotal > ledgerFilters.per_page"
+            class="flex justify-end border-t border-[var(--color-edge)] p-3"
+          >
+            <el-pagination
+              v-model:current-page="ledgerFilters.page"
+              :page-size="ledgerFilters.per_page"
+              :total="ledgerTotal"
+              layout="prev, pager, next"
+              background
+            />
+          </div>
         </div>
       </el-tab-pane>
 

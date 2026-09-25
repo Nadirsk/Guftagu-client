@@ -9,6 +9,8 @@ declare module 'vue-router' {
     /** Role key required in addition to `permission` — not satisfied by Super Admin's bypass. */
     requireRole?: string
     public?: boolean
+    /** Reachable signed in or not — unlike `public`, which sends a signed-in admin home. */
+    open?: boolean
     title?: string
   }
 }
@@ -21,6 +23,12 @@ const router = createRouter({
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
       meta: { public: true, title: 'Sign in' },
+    },
+    {
+      path: '/preview',
+      name: 'animation-preview',
+      component: () => import('@/views/AnimationPreviewView.vue'),
+      meta: { open: true, title: 'Animation preview' },
     },
     {
       path: '/',
@@ -258,6 +266,8 @@ router.beforeEach(async (to) => {
 
   // Resolve a stored token once, before the first guarded decision.
   if (!auth.ready) await auth.restore()
+
+  if (to.meta.open) return true
 
   if (to.meta.public) {
     return auth.isAuthenticated ? { name: 'overview' } : true

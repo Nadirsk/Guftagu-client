@@ -231,6 +231,23 @@ export interface LedgerRow {
   created_at: string | null
 }
 
+/** GET /admin/economy/ledger (A.7d) — every wallet's movements, not scoped to one user. */
+export interface EconomyLedgerRow {
+  uuid: string
+  user: { id: number; guftagu_id: string } | null
+  direction: 'credit' | 'debit'
+  amount: number
+  signed_amount: number
+  balance_before: number
+  balance_after: number
+  type: string
+  reference_type: string | null
+  reference_id: number | null
+  note: string | null
+  performed_by: string | null
+  created_at: string | null
+}
+
 export interface KycRecord {
   id: number
   status: Exclude<KycStatus, 'none'>
@@ -532,6 +549,10 @@ export interface ImageUploadResult {
   url: string
   path: string
   size: number
+}
+
+export interface AnimationUploadResult extends ImageUploadResult {
+  type: AnimationType
 }
 
 export interface VipTierRow {

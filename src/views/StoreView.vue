@@ -2,6 +2,8 @@
 import { ElMessage, ElMessageBox } from "element-plus";
 import { computed, onMounted, reactive, ref } from "vue";
 
+import AnimationPreview from "@/components/AnimationPreview.vue";
+import AnimationUpload from "@/components/AnimationUpload.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import ImageUpload from "@/components/ImageUpload.vue";
 import PageHead from "@/components/PageHead.vue";
@@ -37,6 +39,7 @@ const dialog = ref(false);
 const saving = ref(false);
 const errors = ref<Record<string, string>>({});
 const imageUpload = ref<InstanceType<typeof ImageUpload> | null>(null);
+const animationUpload = ref<InstanceType<typeof AnimationUpload> | null>(null);
 
 const form = reactive({
   id: null as number | null,
@@ -84,6 +87,14 @@ async function loadVipTiers() {
   } catch {
     /* the tier picker just falls back to no options */
   }
+}
+
+/** The card plays the animation when there is one the panel can play (SVGA / MP4). */
+function playableAnimation(row: StoreItemRow): string | null {
+  const url = row.animation_url;
+  if (!url) return null;
+  const ext = url.split("?")[0].split(".").pop()?.toLowerCase();
+  return ext === "svga" || ext === "mp4" ? url : null;
 }
 
 function priceLabel(row: StoreItemRow): string {
@@ -170,6 +181,8 @@ async function save() {
 
       if (imageUpload.value?.hasPendingFile)
         await imageUpload.value.uploadNow(data.id);
+      if (animationUpload.value?.hasPendingFile)
+        await animationUpload.value.uploadNow(data.id);
 
       ElMessage.success("Item created");
     } else {
@@ -256,8 +269,14 @@ async function removeItem(row: StoreItemRow) {
             <div
               class="flex h-20 items-center justify-center border-b border-[var(--color-edge)] bg-[var(--color-recess)]"
             >
+              <AnimationPreview
+                v-if="playableAnimation(row)"
+                :src="playableAnimation(row)!"
+                :size="80"
+                bare
+              />
               <img
-                v-if="row.image_url"
+                v-else-if="row.image_url"
                 :src="row.image_url"
                 alt=""
                 class="h-full w-full object-contain p-2"
@@ -374,17 +393,24 @@ async function removeItem(row: StoreItemRow) {
             <el-option v-for="s in sources" :key="s" :label="s" :value="s" />
           </el-select>
         </div>
-        <div>
-          <label class="eyebrow mb-1 block">Animation URL</label>
-          <el-input v-model="form.animation_url" placeholder="https://…" />
-        </div>
+        <AnimationUpload
+          ref="animationUpload"
+          v-model="form.animation_url"
+          upload-url="/admin/store-items/animation"
+          :record-id="form.id"
+          @saved="load"
+        />
       </template>
 
       <template v-if="form.type === 'entrance_effect'">
-        <div>
-          <label class="eyebrow mb-1 block">Animation URL</label>
-          <el-input v-model="form.animation_url" placeholder="https://…" />
-        </div>
+        <AnimationUpload
+          ref="animationUpload"
+          v-model="form.animation_url"
+          upload-url="/admin/store-items/animation"
+          :record-id="form.id"
+          @type="form.animation_type = $event"
+          @saved="load"
+        />
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="eyebrow mb-1 block">Animation type</label>
