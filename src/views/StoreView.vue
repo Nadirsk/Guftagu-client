@@ -179,10 +179,23 @@ async function save() {
         type: form.type,
       });
 
-      if (imageUpload.value?.hasPendingFile)
-        await imageUpload.value.uploadNow(data.id);
-      if (animationUpload.value?.hasPendingFile)
-        await animationUpload.value.uploadNow(data.id);
+      // From here the item exists — a failed upload must not look like a failed create.
+      form.id = data.id;
+
+      const failed: string[] = [];
+      if (imageUpload.value?.hasPendingFile &&
+        (await imageUpload.value.uploadNow(data.id)) === null)
+        failed.push("image");
+      if (animationUpload.value?.hasPendingFile &&
+        (await animationUpload.value.uploadNow(data.id)) === null)
+        failed.push("animation");
+
+      if (failed.length) {
+        // Keep the dialog open, now editing the new item, so the upload can be retried.
+        ElMessage.warning(`Item created, but the ${failed.join(" and ")} did not upload. Pick the file again.`);
+        await load();
+        return;
+      }
 
       ElMessage.success("Item created");
     } else {

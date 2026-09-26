@@ -37,6 +37,9 @@ const emit = defineEmits<{
 
 const EXTENSION_TYPES: Record<string, AnimationType> = { svga: 'svga', json: 'lottie', mp4: 'mp4' }
 
+/** Mirrors StoreItemController::MAX_ANIMATION_KB, so an oversized file is refused on pick, not after Save. */
+const MAX_MB = 50
+
 const input = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
 
@@ -68,6 +71,10 @@ async function onFileChange(event: Event) {
     ElMessage.error('Upload an SVGA, Lottie (.json) or MP4 file.')
     return
   }
+  if (file.size > MAX_MB * 1024 * 1024) {
+    ElMessage.error(`That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is ${MAX_MB} MB.`)
+    return
+  }
   emit('type', type)
 
   if (props.recordId !== null) {
@@ -88,13 +95,16 @@ async function doUpload(file: File, recordId: number): Promise<string | null> {
   body.append('id', String(recordId))
 
   try {
-    const { data } = await api.post<AnimationUploadResult>(props.uploadUrl, body)
+    // A big SVGA goes browser → API → Vultr; the client's default 20 s timeout aborts it
+    // mid-upload and the request shows up as "(canceled)".
+    const { data } = await api.post<AnimationUploadResult>(props.uploadUrl, body, { timeout: 300_000 })
     emit('update:modelValue', data.url)
     ElMessage.success('Uploaded and saved')
     emit('saved')
     return data.url
   } catch (e) {
-    if (e instanceof ApiError) ElMessage.error(e.message)
+    // A 422's real reason ("larger than 50 MB") is in the field error, not the envelope message.
+    if (e instanceof ApiError) ElMessage.error(e.fieldErrors.file ?? e.message)
     return null
   } finally {
     uploading.value = false
@@ -105,8 +115,10 @@ async function doUpload(file: File, recordId: number): Promise<string | null> {
 async function uploadNow(recordId: number): Promise<string | null> {
   if (!pendingFile.value) return null
 
+  // Cleared either way: on failure the item already exists, so a retry is a fresh pick
+  // that uploads straight onto it — a stale "saves once you create this" would mislead.
   const url = await doUpload(pendingFile.value, recordId)
-  if (url !== null) revokePending()
+  revokePending()
   return url
 }
 
@@ -136,7 +148,7 @@ defineExpose({ uploadNow, hasPendingFile })
     <p v-if="hasPendingFile" class="eyebrow mt-1 text-[var(--color-signal)]">
       picked {{ pendingFile?.name }} · saves once you create this
     </p>
-    <p v-else class="eyebrow mt-1">SVGA, Lottie (.json) or MP4 · up to 10 MB</p>
+    <p v-else class="eyebrow mt-1">SVGA, Lottie (.json) or MP4 · up to {{ MAX_MB }} MB</p>
 
     <div v-if="previewSrc" class="mt-2 flex items-end gap-3">
       <AnimationPreview :key="previewSrc" :src="previewSrc" :type="pendingType" :size="140" />
