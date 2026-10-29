@@ -17,14 +17,18 @@ import type {
 } from "@/types/api";
 
 /**
- * The app's "Mall" — frames, bubbles, entry banners and entrance effects, all bought with
- * coins and (optionally) held for a limited rental period. See `StoreItem` on the backend
- * for why these four share one table instead of four near-identical ones.
+ * The app's "Mall" — frames, entrance effects, bubbles, entry banners, profile cards and mic
+ * sound waves, all bought with coins and (optionally) held for a limited rental period. See
+ * `StoreItem` on the backend for why these share one table.
  */
 const TABS: Array<{ type: StoreItemType; label: string }> = [
   { type: "frame", label: "Frame" },
   { type: "entrance_effect", label: "Entry Effect" },
   { type: "bubble", label: "Bubbles" },
+  { type: "profile_card", label: "Profile Card" },
+  { type: "mic_wave", label: "Sound Wave" },
+  { type: "room_background", label: "Room Background" },
+  { type: "floating_screen", label: "Floating Screen" },
   { type: "entry_banner", label: "Entry Banner" },
 ];
 
@@ -164,6 +168,11 @@ async function save() {
     body.animation_url = form.animation_url || null;
   }
 
+  if (["profile_card", "mic_wave", "room_background", "floating_screen"].includes(form.type)) {
+    body.animation_url = form.animation_url || null;
+    body.animation_type = form.animation_type || null;
+  }
+
   if (form.type === "entrance_effect") {
     body.animation_url = form.animation_url || null;
     body.animation_type = form.animation_type || null;
@@ -239,7 +248,7 @@ async function removeItem(row: StoreItemRow) {
   <PageHead
     eyebrow="Store"
     title="Store"
-    lede="The app's Mall — frames, bubbles, entry banners and entrance effects a user buys with coins."
+    lede="The app's Mall — frames, entrance effects, bubbles, profile cards, sound waves and entry banners a user buys with coins."
   >
     <template #actions>
       <el-button
@@ -470,6 +479,19 @@ async function removeItem(row: StoreItemRow) {
             />
           </div>
         </div>
+      </template>
+
+      <template
+        v-if="['profile_card', 'mic_wave', 'room_background', 'floating_screen'].includes(form.type)"
+      >
+        <AnimationUpload
+          ref="animationUpload"
+          v-model="form.animation_url"
+          upload-url="/admin/store-items/animation"
+          :record-id="form.id"
+          @type="form.animation_type = $event"
+          @saved="load"
+        />
       </template>
 
       <div

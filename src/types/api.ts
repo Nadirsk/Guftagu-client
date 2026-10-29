@@ -591,7 +591,7 @@ export interface CosmeticsResult {
 
 // ------------------------------------------------------------- store items (the Mall)
 
-export type StoreItemType = 'frame' | 'bubble' | 'entry_banner' | 'entrance_effect'
+export type StoreItemType = 'frame' | 'bubble' | 'entry_banner' | 'entrance_effect' | 'profile_card' | 'mic_wave' | 'room_background' | 'floating_screen'
 
 export interface StoreItemRow {
   id: number

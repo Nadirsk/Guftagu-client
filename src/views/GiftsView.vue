@@ -2,6 +2,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, reactive, ref, toRef } from 'vue'
 
+import AnimationUpload from '@/components/AnimationUpload.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 import PageHead from '@/components/PageHead.vue'
@@ -27,6 +28,7 @@ const dialog = ref(false)
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
 const thumbnailUpload = ref<InstanceType<typeof ImageUpload> | null>(null)
+const animationUpload = ref<InstanceType<typeof AnimationUpload> | null>(null)
 const iconUpload = ref<InstanceType<typeof ImageUpload> | null>(null)
 
 const form = reactive({
@@ -39,6 +41,8 @@ const form = reactive({
   coin_price: 100,
   diamond_value: 50,
   thumbnail_url: null as string | null,
+  animation_url: '' as string,
+  animation_type: '' as string,
   is_fullscreen: false,
   is_combo_enabled: true,
   required_vip_tier_id: null as number | null,
@@ -165,7 +169,8 @@ async function load() {
 function create() {
   Object.assign(form, {
     id: null, code: '', name_en: '', name_hi: '', category_id: null, tier: 'basic',
-    coin_price: 100, diamond_value: 50, thumbnail_url: null, is_fullscreen: false, is_combo_enabled: true,
+    coin_price: 100, diamond_value: 50, thumbnail_url: null, animation_url: '', animation_type: '',
+    is_fullscreen: false, is_combo_enabled: true,
     required_vip_tier_id: null, is_limited: false, stock: 0,
     available_from: '', available_to: '', is_active: true,
   })
@@ -184,6 +189,8 @@ function edit(gift: GiftRow) {
     coin_price: gift.coin_price,
     diamond_value: gift.diamond_value,
     thumbnail_url: gift.thumbnail_url,
+    animation_url: gift.animation_url ?? '',
+    animation_type: gift.animation_type ?? '',
     is_fullscreen: gift.is_fullscreen,
     is_combo_enabled: gift.max_combo > 1,
     required_vip_tier_id: gift.vip_tier?.id ?? null,
@@ -209,6 +216,8 @@ async function save() {
     coin_price: form.coin_price,
     diamond_value: form.diamond_value,
     thumbnail_url: form.thumbnail_url,
+    animation_url: form.animation_url || null,
+    animation_type: form.animation_type || null,
     is_fullscreen: form.is_fullscreen,
     is_combo_enabled: form.is_combo_enabled,
     // el-select's clear button resets to `undefined`, not `null` — and axios/JSON.stringify
@@ -230,8 +239,18 @@ async function save() {
       // upload endpoint requires an id, the same way mehfil's and Trumac's do.
       const { data } = await api.post<GiftRow>('/admin/gifts', { ...body, code: form.code })
 
-      if (thumbnailUpload.value?.hasPendingFile) {
-        await thumbnailUpload.value.uploadNow(data.id)
+      const failed: string[] = []
+      if (thumbnailUpload.value?.hasPendingFile &&
+        (await thumbnailUpload.value.uploadNow(data.id)) === null)
+        failed.push('thumbnail')
+      if (animationUpload.value?.hasPendingFile &&
+        (await animationUpload.value.uploadNow(data.id)) === null)
+        failed.push('animation')
+
+      if (failed.length) {
+        ElMessage.warning(`Gift created, but the ${failed.join(' and ')} did not upload. Pick the file again.`)
+        await load()
+        return
       }
 
       ElMessage.success('Gift created — it is in the app catalogue now')
@@ -499,6 +518,15 @@ const margin = computed(() => (gift: GiftRow) =>
         upload-url="/admin/gifts/thumbnail"
         label="Thumbnail"
         :record-id="form.id"
+        @saved="load"
+      />
+
+      <AnimationUpload
+        ref="animationUpload"
+        v-model="form.animation_url"
+        upload-url="/admin/gifts/animation"
+        :record-id="form.id"
+        @type="form.animation_type = $event"
         @saved="load"
       />
 
