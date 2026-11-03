@@ -611,6 +611,18 @@ export interface StoreItemRow {
   is_active: boolean
 }
 
+export interface CheckinRewardRow {
+  id: number
+  streak_day: number
+  reward_type: 'coins' | 'diamonds' | StoreItemType
+  reward_value: number
+  store_item_id: number | null
+  duration_days: number | null
+  item: { id: number; type: StoreItemType; name: string; image_url: string | null; animation_url: string | null } | null
+  is_active: boolean
+  payable: boolean
+}
+
 export interface StoreItemsResult {
   items: StoreItemRow[]
   types: StoreItemType[]

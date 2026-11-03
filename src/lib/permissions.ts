@@ -127,6 +127,7 @@ export const NAV: NavSection[] = [
     items: [
       { label: 'Events', to: '/events', icon: 'Calendar', anyOf: ['events.view'] },
       { label: 'Rankings', to: '/rankings', icon: 'Trophy', anyOf: ['rankings.view'] },
+      { label: 'Daily rewards', to: '/daily-rewards', icon: 'Medal', anyOf: ['checkin.view'] },
     ],
   },
   {

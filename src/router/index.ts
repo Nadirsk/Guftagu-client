@@ -221,6 +221,12 @@ const router = createRouter({
           meta: { permission: 'vip.view', title: 'Store' },
         },
         {
+          path: 'daily-rewards',
+          name: 'daily-rewards',
+          component: () => import('@/views/DailyRewardsView.vue'),
+          meta: { permission: 'checkin.view', title: 'Daily rewards' },
+        },
+        {
           path: 'levels',
           name: 'levels',
           component: () => import('@/views/LevelsView.vue'),
