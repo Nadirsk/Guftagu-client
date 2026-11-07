@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import EmptyState from '@/components/EmptyState.vue'
@@ -14,6 +14,16 @@ import type { EventPhase, EventRow, EventType, MetricRefType, ProgressMetric, Ra
 const router = useRouter()
 
 const CAMPAIGN_TYPES: EventType[] = ['recharge_activity', 'weekly_star', 'custom']
+
+/**
+ * The types this panel offers for now. The backend still takes every EventType
+ * (tournament, lucky_draw, custom) — adding one back is a line here, not a code change.
+ */
+const OFFERED_TYPES: Array<{ value: EventType; label: string }> = [
+  { value: 'event', label: 'Event' },
+  { value: 'weekly_star', label: 'Weekly Star' },
+  { value: 'recharge_activity', label: 'Recharge Activity' },
+]
 
 const PROGRESS_METRIC_LABELS: Record<ProgressMetric, string> = {
   recharge_amount: 'Coins recharged (real money top-up)',
@@ -55,6 +65,17 @@ const form = reactive({
   standings_source: 'metric' as 'metric' | 'ranking_rule',
   metric_ref_type: '' as '' | MetricRefType,
   metric_ref_id: null as number | null,
+  // weekly_star only — a start date and a number of 7-day rounds
+  starts_on: '',
+  weeks: 4,
+})
+
+const isWeeklyStar = computed(() => form.type === 'weekly_star')
+const weeklyStarEnds = computed(() => {
+  if (!form.starts_on) return ''
+  const end = new Date(`${form.starts_on}T00:00:00`)
+  end.setDate(end.getDate() + form.weeks * 7 - 1)
+  return end.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 })
 
 onMounted(async () => {
@@ -110,12 +131,15 @@ function create() {
     max_participants: null, winner_count: 3, algorithm: 'random',
     period: 'monthly', progress_metric: 'recharge_amount', ranking_rule_key: '',
     standings_source: 'metric', metric_ref_type: '', metric_ref_id: null,
+    starts_on: start.toISOString().slice(0, 10), weeks: 4,
   })
   errors.value = {}
   dialog.value = true
 }
 
 async function save() {
+  if (isWeeklyStar.value) return saveWeeklyStar()
+
   saving.value = true
   errors.value = {}
 
@@ -141,11 +165,6 @@ async function save() {
     body.period = form.period
   }
 
-  if (form.type === 'weekly_star') {
-    body.ranking_rule_key = form.ranking_rule_key
-    body.period = form.period
-  }
-
   if (form.type === 'custom') {
     body.period = form.period || null
     if (form.standings_source === 'ranking_rule') {
@@ -164,6 +183,31 @@ async function save() {
     ElMessage.success('Created as a draft — publish it when the details are right')
     dialog.value = false
     await load()
+  } catch (e) {
+    if (e instanceof ApiError) {
+      errors.value = e.fieldErrors
+      if (!Object.keys(errors.value).length) ElMessage.error(e.message)
+    }
+  } finally {
+    saving.value = false
+  }
+}
+
+/** Weekly Star has its own page: gifts and the Top 1–3 rewards are set there next. */
+async function saveWeeklyStar() {
+  saving.value = true
+  errors.value = {}
+  try {
+    const { data } = await api.post<{ id: number }>('/admin/weekly-stars', {
+      title_en: form.title_en,
+      title_hi: form.title_hi || null,
+      description: form.description || null,
+      starts_on: form.starts_on,
+      weeks: form.weeks,
+    })
+    dialog.value = false
+    ElMessage.success('Draft created — now pick the Event Gifts and the Top 1–3 rewards')
+    void router.push({ name: 'weekly-star', params: { id: data.id } })
   } catch (e) {
     if (e instanceof ApiError) {
       errors.value = e.fieldErrors
@@ -218,7 +262,13 @@ async function cancel(row: EventRow) {
 }
 
 function open(row: EventRow) {
-  const name = CAMPAIGN_TYPES.includes(row.type) ? 'event-builder' : 'event-detail'
+  // The older Weekly Star shape (riding a ranking rule) stays in the generic builder.
+  const name =
+    row.type === 'weekly_star' && !row.ranking_rule_key
+      ? 'weekly-star'
+      : CAMPAIGN_TYPES.includes(row.type)
+        ? 'event-builder'
+        : 'event-detail'
   void router.push({ name, params: { id: row.id } })
 }
 
@@ -251,11 +301,7 @@ function isStaleDraft(row: EventRow): boolean {
   >
     <template #actions>
       <el-select v-model="type" placeholder="Any type" clearable size="small" class="w-40" @change="load">
-        <el-option label="Event" value="event" />
-        <el-option label="Tournament" value="tournament" />
-        <el-option label="Lucky draw" value="lucky_draw" />
-        <el-option label="Recharge Activity" value="recharge_activity" />
-        <el-option label="Weekly Star" value="weekly_star" />
+        <el-option v-for="t in OFFERED_TYPES" :key="t.value" :label="t.label" :value="t.value" />
       </el-select>
       <el-select v-model="phase" placeholder="Any phase" clearable size="small" class="w-36" @change="load">
         <el-option label="Live" value="live" />
@@ -343,12 +389,7 @@ function isStaleDraft(row: EventRow): boolean {
       <div>
         <label class="eyebrow mb-1 block">Type</label>
         <el-radio-group v-model="form.type" size="small">
-          <el-radio-button value="event">Event</el-radio-button>
-          <el-radio-button value="tournament">Tournament</el-radio-button>
-          <el-radio-button value="lucky_draw">Lucky draw</el-radio-button>
-          <el-radio-button value="recharge_activity">Recharge Activity</el-radio-button>
-          <el-radio-button value="weekly_star">Weekly Star</el-radio-button>
-          <el-radio-button value="custom">Custom</el-radio-button>
+          <el-radio-button v-for="t in OFFERED_TYPES" :key="t.value" :value="t.value">{{ t.label }}</el-radio-button>
         </el-radio-group>
       </div>
 
@@ -369,7 +410,7 @@ function isStaleDraft(row: EventRow): boolean {
         <el-input id="e-desc" v-model="form.description" type="textarea" :rows="2" />
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
+      <div v-if="!isWeeklyStar" class="grid grid-cols-2 gap-3">
         <div>
           <label class="eyebrow mb-1 block">Starts</label>
           <el-date-picker
@@ -390,11 +431,11 @@ function isStaleDraft(row: EventRow): boolean {
           <p v-if="errors.ends_at" class="mt-1 text-[12px] text-[var(--color-cut)]">{{ errors.ends_at }}</p>
         </div>
       </div>
-      <p class="eyebrow">
+      <p v-if="!isWeeklyStar" class="eyebrow">
         it flips to live and to ended at these times by itself — no scheduled job to miss
       </p>
 
-      <div class="grid grid-cols-2 gap-3 border-t border-[var(--color-edge)] pt-3">
+      <div v-if="!isWeeklyStar" class="grid grid-cols-2 gap-3 border-t border-[var(--color-edge)] pt-3">
         <div>
           <label class="eyebrow mb-1 block">Entry</label>
           <el-select v-model="form.entry_type" class="w-full">
@@ -446,14 +487,22 @@ function isStaleDraft(row: EventRow): boolean {
         </p>
       </div>
 
-      <div v-if="form.type === 'weekly_star'" class="border-t border-[var(--color-edge)] pt-3">
-        <label class="eyebrow mb-1 block">Driven by ranking rule</label>
-        <el-select v-model="form.ranking_rule_key" class="w-full" placeholder="Select a rule">
-          <el-option v-for="rule in rankingRules" :key="rule.key" :label="`${rule.key} (${rule.board_type} · ${rule.period})`" :value="rule.key" />
-        </el-select>
+      <div v-if="isWeeklyStar" class="border-t border-[var(--color-edge)] pt-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="eyebrow mb-1 block">Start date</label>
+            <el-date-picker v-model="form.starts_on" type="date" value-format="YYYY-MM-DD" class="w-full" />
+            <p v-if="errors.starts_on" class="mt-1 text-[12px] text-[var(--color-cut)]">{{ errors.starts_on }}</p>
+          </div>
+          <div>
+            <label class="eyebrow mb-1 block">Runs for</label>
+            <el-input-number v-model="form.weeks" :min="1" :max="52" class="w-full" />
+            <span class="text-[12px]">{{ form.weeks === 1 ? 'week' : 'weeks' }}</span>
+          </div>
+        </div>
         <p class="eyebrow mt-2 leading-relaxed">
-          standings come from this rule's leaderboard — rank bands and reward bundles are added
-          afterwards, in the builder
+          every round is 7 days from the start date{{ weeklyStarEnds ? ` — the last one ends ${weeklyStarEnds}` : '' }}.
+          The Event Gifts and the Top 1–3 rewards are set on the next page.
         </p>
       </div>
 
@@ -529,7 +578,7 @@ function isStaleDraft(row: EventRow): boolean {
       <el-button
         type="primary"
         :loading="saving"
-        :disabled="!form.title_en || !form.starts_at || !form.ends_at"
+        :disabled="!form.title_en || (isWeeklyStar ? !form.starts_on : !form.starts_at || !form.ends_at)"
         @click="save"
       >
         Create draft

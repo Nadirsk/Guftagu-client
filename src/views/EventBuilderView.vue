@@ -5,7 +5,6 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import EmptyState from '@/components/EmptyState.vue'
 import PageHead from '@/components/PageHead.vue'
-import PhonePreview from '@/components/PhonePreview.vue'
 import { ApiError, api } from '@/lib/api'
 import type {
   BlockType,
@@ -20,8 +19,7 @@ import type {
  * The Event Builder — the admin side of `recharge_activity` and `weekly_star` (and any
  * future campaign event, since nothing here is specific to those two). Every screen is
  * composed as an ordered array of block *instances* (`event.layout`): pick a block,
- * order it, configure it, style it — the phone panel on the right renders that exact
- * array live. Rewards are lines from the shared reward catalog, so a brand new kind of
+ * order it, configure it, style it — the app renders that exact array. Rewards are lines from the shared reward catalog, so a brand new kind of
  * reward is a catalog row, not a code change.
  */
 const route = useRoute()
@@ -411,7 +409,7 @@ function blockLabel(type: BlockType): string {
   <div v-loading="loading" class="px-5 py-5 md:px-7">
     <EmptyState v-if="!loading && !isCampaign" title="Not a campaign event" body="The builder only applies to Recharge Activity and Weekly Star events." />
 
-    <div v-else-if="event" class="grid gap-4 xl:grid-cols-[1fr_380px]">
+    <div v-else-if="event">
       <div class="space-y-4">
         <!-- Basics -->
         <section class="panel p-4">
@@ -478,7 +476,7 @@ function blockLabel(type: BlockType): string {
             </li>
           </ul>
 
-          <p class="eyebrow px-4 py-2">reordering/adding/removing takes effect in the preview instantly — click Save above to publish it to the app</p>
+          <p class="eyebrow px-4 py-2">reordering/adding/removing is local until you click Save above to publish it to the app</p>
         </section>
 
         <!-- Tiers -->
@@ -533,11 +531,6 @@ function blockLabel(type: BlockType): string {
           </ul>
         </section>
       </div>
-
-      <!-- Live mobile preview -->
-      <aside class="xl:sticky xl:top-4 xl:self-start">
-        <PhonePreview :event="event" :blocks="basics.blocks" :title="basics.title_en" :banner-url="basics.banner_url" :tiers="tiers" />
-      </aside>
     </div>
   </div>
 

@@ -107,6 +107,12 @@ const router = createRouter({
           meta: { permission: 'events.view', title: 'Event builder' },
         },
         {
+          path: 'events/:id/weekly-star',
+          name: 'weekly-star',
+          component: () => import('@/views/WeeklyStarView.vue'),
+          meta: { permission: 'events.view', title: 'Weekly Star' },
+        },
+        {
           path: 'rankings',
           name: 'rankings',
           component: () => import('@/views/RankingsView.vue'),

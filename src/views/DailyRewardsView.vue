@@ -4,6 +4,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 
 import PageHead from '@/components/PageHead.vue'
 import { ApiError, api } from '@/lib/api'
+import { isItemReward, REWARD_TYPE_LABELS as TYPE_LABELS, REWARD_TYPES as typeOptions } from '@/lib/rewardTypes'
 import type { CheckinRewardRow, StoreItemRow, StoreItemsResult } from '@/types/api'
 
 /** The 7-day ladder the app's Daily Rewards popup shows: whatever is set here is what players get. */
@@ -13,20 +14,6 @@ const loading = ref(true)
 const saving = ref(false)
 const dialog = ref(false)
 const errors = ref<Record<string, string>>({})
-
-const TYPE_LABELS: Record<string, string> = {
-  coins: 'Coins',
-  diamonds: 'Diamonds',
-  frame: 'Frame',
-  entrance_effect: 'Entry effect',
-  entry_banner: 'Entry banner',
-  bubble: 'Chat bubble',
-  profile_card: 'Profile card',
-  mic_wave: 'Mic wave',
-  room_background: 'Room background',
-  floating_screen: 'Floating screen',
-}
-const typeOptions = Object.keys(TYPE_LABELS)
 
 const form = reactive({
   streak_day: 1,
@@ -39,7 +26,7 @@ const form = reactive({
   is_active: true,
 })
 
-const isItem = computed(() => !['coins', 'diamonds'].includes(form.reward_type))
+const isItem = computed(() => isItemReward(form.reward_type))
 const itemChoices = computed(() => items.value.filter((i) => i.type === form.reward_type && i.is_active))
 
 const days = computed(() =>

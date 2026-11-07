@@ -122,7 +122,7 @@ async function save() {
   <PageHead
     eyebrow="Store"
     title="Wealth &amp; charm levels"
-    lede="The ladder a user's wealth and charm progress climbs. Nothing is stored on a user directly — a level is resolved from lifetime coins spent / diamonds earned against these thresholds, unless a moderator overrides it on the user's own page."
+    lede="The ladder a user's wealth and charm progress climbs. Wealth counts the coin value of gifts the user sends in rooms; charm the coin value of gifts they receive in rooms. A user moves up the moment a threshold is reached — nothing to run — unless a moderator overrides the level on the user's own page."
   >
     <template #actions>
       <el-button v-permission="'levels.manage'" type="primary" size="small" @click="create">
@@ -227,7 +227,7 @@ async function save() {
         <label class="eyebrow mb-1 block">Threshold</label>
         <el-input-number v-model="form.threshold" :min="0" :step="1000" class="w-full" />
         <p class="eyebrow mt-1">
-          coins spent (wealth) or diamonds earned (charm) needed to reach this level
+          coins of room gifts sent (wealth) or received (charm) needed to reach this level
         </p>
         <p v-if="errors.threshold" class="mt-1 text-[12px] text-[var(--color-cut)]">{{ errors.threshold }}</p>
       </div>

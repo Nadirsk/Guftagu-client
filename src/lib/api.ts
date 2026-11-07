@@ -184,6 +184,8 @@ export const api = {
     request<T>({ ...config, method: 'post', url, data }),
   patch: <T>(url: string, data?: unknown, config?: ExtraConfig) =>
     request<T>({ ...config, method: 'patch', url, data }),
+  put: <T>(url: string, data?: unknown, config?: ExtraConfig) =>
+    request<T>({ ...config, method: 'put', url, data }),
   del: <T>(url: string, data?: unknown, config?: ExtraConfig) =>
     request<T>({ ...config, method: 'delete', url, data }),
 }

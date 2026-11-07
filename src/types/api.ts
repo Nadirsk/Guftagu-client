@@ -837,6 +837,8 @@ export interface RewardCatalogItemRow {
   handler_ref_id: number | null
   /** Resolved display name for handler_ref_id, e.g. "700K Frame" or "VIP Gold". */
   handler_ref_label: string | null
+  /** The icon, else the granted thing's own picture (the frame, the medal, the VIP badge). */
+  image_url?: string | null
   is_active: boolean
 }
 
@@ -860,6 +862,53 @@ export interface EventTierRow {
   image_url: string | null
   sort_order: number
   rewards: EventTierRewardRow[]
+}
+
+/** Weekly Star — `GET /admin/weekly-stars/{id}`. */
+export interface WeeklyStarGift {
+  id: number
+  name: string
+  price: number
+  thumbnail_url: string | null
+  is_active?: boolean
+}
+
+export interface WeeklyStarStanding {
+  rank: number
+  user_id: number
+  guftagu_id: string | null
+  display_name: string | null
+  score: number
+}
+
+export interface WeeklyStarRound {
+  week: number
+  period_start: string
+  period_end: string
+  state: 'upcoming' | 'live' | 'due' | 'settled'
+  standings: WeeklyStarStanding[]
+  granted: number
+  settled_at: string | null
+}
+
+export interface WeeklyStarDetail {
+  event: {
+    id: number
+    uuid: string
+    title_en: string
+    title_hi: string | null
+    description: string | null
+    rules: string[]
+    status: 'draft' | 'scheduled' | 'cancelled'
+    phase: EventPhase
+    starts_at: string
+    ends_at: string
+    weeks: number
+  }
+  gifts: WeeklyStarGift[]
+  tiers: EventTierRow[]
+  rounds: WeeklyStarRound[]
+  board: Array<{ rank: number; entity_id: number; score: number; guftagu_id: string | null; display_name: string | null; avatar_url: string | null }>
 }
 
 export interface EventRewardRow {
@@ -912,6 +961,20 @@ export interface RankingRuleRow {
   top_n: number
   is_active: boolean
   computable: boolean
+}
+
+/** One reward a rank range earns: currency, or a store item for N days. A rank carries up to 3. */
+export interface RankingRewardRow {
+  id: number
+  rank_from: number
+  rank_to: number
+  reward_type: 'coins' | 'diamonds' | StoreItemType
+  reward_value: number
+  store_item_id: number | null
+  duration_days: number | null
+  item: { id: number; type: StoreItemType; name: string; image_url: string | null; animation_url: string | null } | null
+  is_active: boolean
+  payable: boolean
 }
 
 export interface RankingRulesResult {
