@@ -961,9 +961,13 @@ export interface RankingRuleRow {
   top_n: number
   is_active: boolean
   computable: boolean
+  /** CP: no pairs or points are tracked, so the board only takes rewards. */
+  rewards_only?: boolean
+  /** How many rewards one rank can carry: 3 on the Weekly List, 4 on the CP Reward cards. */
+  max_rewards_per_rank?: number
 }
 
-/** One reward a rank range earns: currency, or a store item for N days. A rank carries up to 3. */
+/** One reward a rank range earns: currency, or a store item for N days. A rank carries up to 3 (4 on CP). */
 export interface RankingRewardRow {
   id: number
   rank_from: number

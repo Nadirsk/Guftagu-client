@@ -24,7 +24,7 @@ const computableTypes = ref<string[]>([])
  * The panel picks a board (Rich / Charm …) on the left and a period in the filter above
  * the table; together they name exactly one rule, the way the app's Rankings screen does.
  */
-const BOARD_LABELS: Record<string, string> = { wealth: 'Rich', charm: 'Charm', room: 'Room', agency: 'Agency' }
+const BOARD_LABELS: Record<string, string> = { wealth: 'Rich', charm: 'Charm', cp: 'CP', room: 'Room', agency: 'Agency' }
 const PERIOD_ORDER = ['daily', 'weekly', 'monthly', 'all_time']
 const PERIOD_LABELS: Record<string, string> = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', all_time: 'All time' }
 
@@ -36,6 +36,8 @@ const boards = computed(() =>
     type,
     label: BOARD_LABELS[type] ?? type,
     computable: computableTypes.value.includes(type),
+    // CP cannot be ranked yet but its rewards can be set, so it stays selectable.
+    rewardsOnly: rules.value.some((r) => r.board_type === type && r.rewards_only),
   })),
 )
 const periods = computed(() =>
@@ -155,23 +157,25 @@ async function payRewards(periodStart: string) {
   }
 }
 
-/** The app's Weekly List card has three slots; the server refuses a fourth reward on a rank. */
-const MAX_PER_RANK = 3
+/** The Weekly List card has three slots and the CP Reward card four; the server refuses one more on a rank. */
+const maxPerRank = computed(() => selected.value?.max_rewards_per_rank ?? 3)
+const isCp = computed(() => selected.value?.rewards_only === true)
 
 const PERIOD_PREFIX: Record<string, string> = { daily: 'Day ', weekly: 'Week ', monthly: 'Month ' }
 const rankTitle = (rank: number) => `${PERIOD_PREFIX[selected.value?.period ?? ''] ?? ''}Top ${rank}`
 
-/** Top 1–3 always show, so the admin can see what each Weekly List card will hold. */
+/** The cards that always show: Top 1–3 on the Weekly List, Top 1–5 on CP Reward (6–10 is a range). */
+const shownRanks = computed(() => (isCp.value ? [1, 2, 3, 4, 5] : [1, 2, 3]))
 const topRanks = computed(() =>
-  [1, 2, 3].map((rank) => ({
+  shownRanks.value.map((rank) => ({
     rank,
     own: rewards.value.filter((r) => r.rank_from === rank && r.rank_to === rank),
-    full: rewards.value.filter((r) => r.is_active && r.rank_from <= rank && r.rank_to >= rank).length >= MAX_PER_RANK,
+    full: rewards.value.filter((r) => r.is_active && r.rank_from <= rank && r.rank_to >= rank).length >= maxPerRank.value,
   })),
 )
-/** Bands over a range (#1–3, #4–10…) — still paid, listed under the three cards. */
+/** Bands over a range (#1–3, #6–10…) — still shown in the app, listed under the cards. */
 const otherRewards = computed(() =>
-  rewards.value.filter((r) => !(r.rank_from === r.rank_to && r.rank_from <= 3)),
+  rewards.value.filter((r) => !(r.rank_from === r.rank_to && r.rank_from <= shownRanks.value.length)),
 )
 
 function rewardSummary(r: RankingRewardRow): string {
@@ -344,19 +348,20 @@ const belowThresholdNote = computed(() =>
                   ? 'border-l-[var(--color-signal)] bg-[var(--color-raised)]'
                   : 'border-l-transparent hover:bg-[var(--color-raised)]'
               "
-              :disabled="!b.computable"
+              :disabled="!b.computable && !b.rewardsOnly"
               @click="pickBoard(b.type)"
             >
               <span class="min-w-0">
                 <span class="block truncate text-[14px] font-medium">{{ b.label }}</span>
                 <span class="eyebrow">{{ b.type }}</span>
               </span>
-              <el-tag v-if="!b.computable" size="small" type="info">soon</el-tag>
+              <el-tag v-if="b.rewardsOnly" size="small" type="warning">rewards only</el-tag>
+              <el-tag v-else-if="!b.computable" size="small" type="info">soon</el-tag>
             </button>
           </li>
         </ul>
         <p class="eyebrow border-t border-[var(--color-edge)] px-4 py-2 leading-relaxed">
-          room and agency boards need modules that do not exist yet
+          room and agency boards need modules that do not exist yet · CP takes rewards only (no pairs or points yet)
         </p>
       </aside>
 
@@ -369,7 +374,13 @@ const belowThresholdNote = computed(() =>
         </div>
 
         <!-- Board -->
-        <section class="panel">
+        <section v-if="isCp" class="panel">
+          <p class="px-4 py-3 text-[13px] text-[var(--color-legend)]">
+            {{ selected.key }} · CP pairs and points are not tracked yet, so there is no board to rank or pay.
+            What you set below is exactly what the app's CP Reward tab shows for each place.
+          </p>
+        </section>
+        <section v-else class="panel">
           <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--color-edge)] px-4 py-2.5">
             <div class="eyebrow">
               {{ selected.key }} · {{ board?.period.start }} → {{ board?.period.end }}
@@ -424,12 +435,14 @@ const belowThresholdNote = computed(() =>
           <!-- Only the weekly board has a reward screen in the app (the Weekly List). -->
           <section v-if="selected.period === 'weekly'" class="panel md:col-span-2">
             <div class="flex items-center justify-between border-b border-[var(--color-edge)] px-4 py-2.5">
-              <div class="eyebrow">Rewards · shown on the app's {{ selected.period }} list</div>
+              <div class="eyebrow">
+                Rewards · shown on the app's {{ isCp ? 'CP Reward tab' : `${selected.period} list` }}
+              </div>
               <el-button
                 v-permission="'rankings.rules_manage'"
                 size="small"
                 text
-                @click="openRewardDialog(4)"
+                @click="openRewardDialog(isCp ? 6 : 4)"
               >
                 Add a range
               </el-button>
@@ -439,7 +452,7 @@ const belowThresholdNote = computed(() =>
               <div v-for="top in topRanks" :key="top.rank" class="flex flex-col gap-2 rounded border border-[var(--color-edge)] p-3">
                 <div class="flex items-baseline justify-between">
                   <span class="text-[14px] font-medium">{{ rankTitle(top.rank) }}</span>
-                  <span class="eyebrow">{{ top.own.length }}/{{ MAX_PER_RANK }}</span>
+                  <span class="eyebrow">{{ top.own.length }}/{{ maxPerRank }}</span>
                 </div>
 
                 <p v-if="!top.own.length" class="text-[12px] text-[var(--color-legend)]">
@@ -475,7 +488,7 @@ const belowThresholdNote = computed(() =>
                   class="mt-auto"
                   size="small"
                   :disabled="top.full"
-                  :title="top.full ? `Top ${top.rank} already has ${MAX_PER_RANK} rewards` : ''"
+                  :title="top.full ? `Top ${top.rank} already has ${maxPerRank} rewards` : ''"
                   @click="openRewardDialog(top.rank)"
                 >
                   Add reward
@@ -499,8 +512,8 @@ const belowThresholdNote = computed(() =>
             </ul>
           </section>
 
-          <!-- Snapshots -->
-          <section class="panel">
+          <!-- Snapshots (CP has no standings to freeze) -->
+          <section v-if="!isCp" class="panel">
             <div class="border-b border-[var(--color-edge)] px-4 py-2.5">
               <div class="eyebrow">Snapshots</div>
             </div>
