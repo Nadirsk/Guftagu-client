@@ -623,6 +623,41 @@ export interface CheckinRewardRow {
   payable: boolean
 }
 
+export type LuckyWheelMode = 'classic' | 'glory'
+
+export interface LuckyWheelPrizeRow {
+  id: number
+  /** 1-8, clockwise from the top of the wheel. */
+  position: number
+  label: string | null
+  display_label: string
+  reward_type: 'coins' | 'diamonds' | StoreItemType
+  reward_value: number
+  store_item_id: number | null
+  duration_days: number | null
+  icon_url: string | null
+  weight: number
+  is_active: boolean
+  payable: boolean
+  /** Percent, already rounded server-side. */
+  chance: number
+  item: { id: number; type: StoreItemType; name: string; image_url: string | null } | null
+}
+
+export interface LuckyWheelRow {
+  id: number
+  mode: LuckyWheelMode
+  name: string
+  spin_cost: number
+  multi_count: number
+  multi_cost: number
+  is_active: boolean
+  /** Expected % of spent coins paid back; null when nothing can be drawn. */
+  payout_rate: number | null
+  totals: { spins: number; players: number; coins_in: number; coins_out: number }
+  prizes: LuckyWheelPrizeRow[]
+}
+
 export interface StoreItemsResult {
   items: StoreItemRow[]
   types: StoreItemType[]

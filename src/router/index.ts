@@ -233,6 +233,12 @@ const router = createRouter({
           meta: { permission: 'checkin.view', title: 'Daily rewards' },
         },
         {
+          path: 'lucky-wheel',
+          name: 'lucky-wheel',
+          component: () => import('@/views/LuckyWheelView.vue'),
+          meta: { permission: 'wheel.view', title: 'Lucky Wheel' },
+        },
+        {
           path: 'levels',
           name: 'levels',
           component: () => import('@/views/LevelsView.vue'),
